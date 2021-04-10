@@ -20,9 +20,8 @@ class OriginalImages(Dataset):
     def __getitem__(self, idx):
         target_image = np.float64(io.imread(self.images_filename[idx]))
         target_image = transform.resize(target_image, self.image_size)
-        target_image = target_image.reshape((3,)+self.image_size)
         target_image = (target_image-np.min(target_image))/np.max(target_image) # values between 0 and 1
-        return torch.FloatTensor(target_image)
+        return torch.FloatTensor(target_image).permute(2, 0, 1)  # (3, 64, 64)
 
 
 def get_data(args):

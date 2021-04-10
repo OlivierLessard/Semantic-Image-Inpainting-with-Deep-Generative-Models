@@ -32,10 +32,14 @@ class Generator(nn.Module):
         )
 
     def forward(self, z):
-        out = self.linear_layer(z)
+        """
+        :param z: random 100 dimensional vector drawn from a uniform distribution between [−1, 1]
+        :return: 64×64×3 image
+        """
+        out = self.linear_layer(z)  # 16x100
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
         image = self.conv_layers(out)
-        return image
+        return image    # 3x64x64
 
 
 class Discriminator(nn.Module):
@@ -59,6 +63,10 @@ class Discriminator(nn.Module):
         self.adverse_layer = nn.Sequential(nn.Linear(128 * self.ds_size ** 2, 1), nn.Sigmoid())
 
     def forward(self, image):
+        """
+        :param image: 64 × 64 × 3
+        :return: output layer is a two class softmax.
+        """
         out = self.conv_layers(image)
         out = out.view(out.shape[0], -1)
         validity = self.adverse_layer(out)
