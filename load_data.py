@@ -1,5 +1,28 @@
 import torchvision
 import torch
+from torch.utils.data import Dataset
+from skimage import transform
+import skimage.io as io
+import numpy as np
+import glob
+import os
+
+
+class OriginalImages(Dataset):
+    def __init__(self, directory, image_size=(64,64)):
+        self.directory = directory
+        self.images_filename = glob.glob(os.path.join(directory, "*.jpg"))
+        self.image_size = image_size
+
+    def __len__(self):
+        return len(self.images_filename)
+
+    def __getitem__(self, idx):
+        target_image = np.float64(io.imread(self.images_filename[idx]))
+        target_image = transform.resize(target_image, self.image_size)
+        target_image = target_image.reshape((3,)+self.image_size)
+        target_image = (target_image-np.min(target_image))/np.max(target_image) # values between 0 and 1
+        return torch.FloatTensor(target_image)
 
 
 def get_data(args):
