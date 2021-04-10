@@ -1,36 +1,55 @@
 import torchvision
+import torch
 
 
 def get_data():
-    calebA_data = torchvision.datasets.CelebA(
-        root="/datasets/celebA",
-        split='all',
-        # target_type
-        transform=torchvision.transforms.CenterCrop(64),
-        download=True
-    )
+    # todo :calebA_data dataset
+    # calebA_data = torchvision.datasets.CelebA(
+    #     root="/datasets/celebA",
+    #     split='all',
+    #     # target_type
+    #     transform=torchvision.transforms.CenterCrop(64),
+    #     download=True
+    # )
     # 2000 for tests
 
     svhn_train_data = torchvision.datasets.SVHN(
-        root="/datasets/SVHN",
+        root="Datasets\SVHN",
         split='train',
         # target_type
-        transform=torchvision.transforms.Resize((64, 64)),
+        transform=torchvision.transforms.Resize(size=[64, 64]),
         download=True
     )
 
     svhn_test_data = torchvision.datasets.SVHN(
-        root="/datasets/SVHN",
+        root="Datasets\SVHN",
         split='test',
         # target_type
-        transform=torchvision.transforms.Resize((64, 64)),
+        transform=torchvision.transforms.Resize(size=[64, 64]),
         download=True
     )
 
     # todo : stanford cars dataset
 
-    return calebA_data, svhn_train_data, svhn_test_data
+    return svhn_train_data, svhn_test_data
+
+
+def get_dataloaders(svhn_train_data, svhn_test_data):
+    # calebA_data_loader = torch.utils.data.DataLoader(calebA_data,
+    #                                                  batch_size=16,
+    #                                                  shuffle=True,
+    #                                                  num_workers=4)
+    svhn_train_data_loader = torch.utils.data.DataLoader(svhn_train_data,
+                                                        batch_size=16,
+                                                        shuffle=True,
+                                                        num_workers=4)
+    svhn_test_data_loader = torch.utils.data.DataLoader(svhn_test_data,
+                                                        batch_size=16,
+                                                        shuffle=True,
+                                                        num_workers=4)
+    return svhn_train_data_loader, svhn_test_data_loader
 
 
 if __name__ == '__main__':
-    calebA_data, svhn_train_data, svhn_test_data = get_data()
+    svhn_train_data, svhn_test_data = get_data()
+    svhn_train_data_loader, svhn_test_data_loader = get_dataloaders(svhn_train_data, svhn_test_data)
