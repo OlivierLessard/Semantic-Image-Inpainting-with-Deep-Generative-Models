@@ -4,6 +4,7 @@ from load_data import get_dataloaders, get_data
 
 def get_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str, default="SVHN")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--gan-path", type=str, default="./checkpoints/model.pth")
     parser.add_argument("--eval-only", action='store_true', default=False)
@@ -21,9 +22,15 @@ def get_arguments():
 
 
 def inpaint(args):
-    svhn_train_data, svhn_test_data = get_data()
-    svhn_train_data_loader, svhn_test_data_loader = get_dataloaders(svhn_train_data, svhn_test_data, args.batch_size)
+    # Dataloaders
+    train_data, test_data = get_data(args)
+    train_data_loader, test_data_loader = get_dataloaders(train_data, test_data, args)
 
+    # load model
+
+
+    # train loop
+    # for i, images in enumerate(train_data_loader):
 
 
 
