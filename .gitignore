@@ -128,3 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea
+Datasets/SVHN/test_32x32.mat Datasets/SVHN/train_32x32.mat
+Datasets/SVHN/test_32x32.mat
+Datasets/SVHN/train_32x32.mat
