@@ -17,7 +17,7 @@ def get_data():
         root="Datasets\SVHN",
         split='train',
         # target_type
-        transform=torchvision.transforms.Resize(size=[64, 64]),
+        transform=torchvision.transforms.Resize(size=[64, 64]),  # use svhn_train_data[index] to access the data with transformation, not svhn_train_data.data[index]
         download=True
     )
 
@@ -34,19 +34,24 @@ def get_data():
     return svhn_train_data, svhn_test_data
 
 
-def get_dataloaders(svhn_train_data, svhn_test_data):
+def get_dataloaders(svhn_train_data, svhn_test_data, batch_size):
+    # todo : calebA_data_loader
     # calebA_data_loader = torch.utils.data.DataLoader(calebA_data,
     #                                                  batch_size=16,
     #                                                  shuffle=True,
     #                                                  num_workers=4)
+
     svhn_train_data_loader = torch.utils.data.DataLoader(svhn_train_data,
-                                                        batch_size=16,
+                                                        batch_size=batch_size,
                                                         shuffle=True,
                                                         num_workers=4)
     svhn_test_data_loader = torch.utils.data.DataLoader(svhn_test_data,
-                                                        batch_size=16,
+                                                        batch_size=batch_size,
                                                         shuffle=True,
                                                         num_workers=4)
+
+    # todo : stanford cars loader
+
     return svhn_train_data_loader, svhn_test_data_loader
 
 
