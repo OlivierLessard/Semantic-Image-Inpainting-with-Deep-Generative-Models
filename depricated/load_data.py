@@ -1,15 +1,18 @@
 import torchvision
 import torch
 from torch.utils.data import Dataset
+import torchvision.datasets as dset
+from torchvision import transforms
 from skimage import transform
-import skimage.io as io
 import numpy as np
 import glob
 import os
+import PIL
+from matplotlib import pyplot as plt
 
 
 class OriginalImages(Dataset):
-    def __init__(self, directory, image_size=(64,64)):
+    def __init__(self, directory, image_size=(64, 64)):
         self.directory = directory
         self.images_filename = glob.glob(os.path.join(directory, "*.jpg"))
         self.image_size = image_size
@@ -18,31 +21,21 @@ class OriginalImages(Dataset):
         return len(self.images_filename)
 
     def __getitem__(self, idx):
-        target_image = np.float64(io.imread(self.images_filename[idx]))
+        target_image = plt.imread(self.images_filename[idx])
         target_image = transform.resize(target_image, self.image_size)
-        target_image = (target_image-np.min(target_image))/np.max(target_image) # values between 0 and 1
+        target_image = (target_image - np.min(target_image)) / np.max(target_image)  # values between 0 and 1
         return torch.FloatTensor(target_image).permute(2, 0, 1)  # (3, 64, 64)
 
 
-def get_data(args):
-    # todo :calebA_data dataset
-    if args.dataset == "calebA":
-        print("calebA download not working")
-        # calebA_data = torchvision.datasets.CelebA(
-        #     root="/datasets/celebA",
-        #     split='all',
-        #     # target_type
-        #     transform=torchvision.transforms.CenterCrop(64),
-        #     download=True
-        # )
-        # 2000 for tests
 
-    elif args.dataset == "SVHN":
+def get_data(args):
+    if args.dataset == "SVHN":
         train_data = torchvision.datasets.SVHN(
             root="Datasets\SVHN",
             split='train',
             # target_type
-            transform=torchvision.transforms.Resize(size=[64, 64]),  # use svhn_train_data[index] to access the data with transformation, not svhn_train_data.data[index]
+            transform=torchvision.transforms.Resize(size=[64, 64]),
+            # use svhn_train_data[index] to access the data with transformation, not svhn_train_data.data[index]
             download=True
         )
 
@@ -72,13 +65,13 @@ def get_dataloaders(train_data, test_data, args):
 
     if args.dataset == "SVHN":
         train_data_loader = torch.utils.data.DataLoader(train_data,
-                                                            batch_size=batch_size,
-                                                            shuffle=True,
-                                                            num_workers=4)
+                                                        batch_size=batch_size,
+                                                        shuffle=True,
+                                                        num_workers=4)
         test_data_loader = torch.utils.data.DataLoader(test_data,
-                                                            batch_size=batch_size,
-                                                            shuffle=True,
-                                                            num_workers=4)
+                                                       batch_size=batch_size,
+                                                       shuffle=True,
+                                                       num_workers=4)
 
     # todo : stanford cars loader
 

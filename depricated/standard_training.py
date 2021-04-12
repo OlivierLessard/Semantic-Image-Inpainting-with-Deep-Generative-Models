@@ -1,14 +1,13 @@
 import argparse
-from load_data import get_dataloaders, get_data, OriginalImages
-from torch.utils.data import DataLoader
-import models
-from models import weights_init_normal
+from depricated import models
+from depricated.models import weights_init_normal
 from torch import nn, optim
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
 import os
 from torchvision.utils import save_image
+import random
 
 
 def get_arguments():
@@ -20,9 +19,9 @@ def get_arguments():
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
 
     parser.add_argument("--latent-dim", type=int, default=100)
-    parser.add_argument("--img-size", type=int, default=64)
+    parser.add_argument("--image-size", type=int, default=64)
     parser.add_argument("--channels", type=int, default=3)
-    parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--iterations", type=int, default=300)
     parser.add_argument("--d-steps", type=int, default=1)
     parser.add_argument("--optim-steps", type=int, default=1500)
     parser.add_argument("--blending-steps", type=int, default=3000)
@@ -34,19 +33,32 @@ def get_arguments():
     return args
 
 
+def create_folders():
+    if not os.path.exists("../images/"):
+        os.mkdir("../images/")
+    if not os.path.exists("../checkpoints/"):
+        os.mkdir("../checkpoints/")
+    if not os.path.exists("../eval/"):
+        os.mkdir("../eval/")
+
+
 def train_GAN(args):
-    images_path = "./images/"
-    if not os.path.exists(images_path):
-        os.mkdir(images_path)
-    if not os.path.exists("./checkpoints/"):
-        os.mkdir("./checkpoints/")
+    create_folders()
+
+    # Set random seed for reproducibility
+    seed = 999
+    random.seed(seed)
+    torch.manual_seed(seed)
 
     # with CelebA
+    from torch.utils.data import DataLoader
+    from depricated.load_data import OriginalImages
     dataset = OriginalImages(args.train_data_dir)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     # show an image
-    plt.imshow(dataset[0].permute(1, 2, 0))
+    print("dataset lenght : ", dataset.__len__())
+    #plt.imshow(dataset[0].permute(1, 2, 0))
 
     # with SVHN
     # train_data, test_data = get_data(args)
@@ -64,25 +76,23 @@ def train_GAN(args):
     optimizer_D = optim.Adam(discriminator.parameters())
 
     # train loop
-    for epoch in range(args.epochs):
+    k_steps = 5
+
+    for iteration in range(args.iterations):
         total_G_loss = 0.0
         total_D_loss = 0.0
+        i = 0
 
-        for i, real_images in enumerate(dataloader):
+        for _ in range(k_steps):
+            real_images = next(iter(dataloader))    # (16, 3, 64, 64)
+            i += 1
             z = torch.FloatTensor(np.random.normal(0, 1, size=(real_images.shape[0], args.latent_dim))).cuda()
             fake_images = generator(z)
             real_images = real_images.cuda()
             real_labels = torch.FloatTensor(real_images.shape[0], 1).fill_(1.0).cuda()
             fake_labels = torch.FloatTensor(real_images.shape[0], 1).fill_(0.0).cuda()
 
-            #  Train Generator
-            optimizer_G.zero_grad()
-            g_loss = adversarial_loss(discriminator(fake_images), real_labels)
-            g_loss.backward()
-            optimizer_G.step()
-            total_G_loss += g_loss.cpu().detach().numpy()
-
-            # train discriminator
+            # update discriminator
             optimizer_G.zero_grad()
             D_on_real = discriminator(real_images)
             D_on_fake = discriminator(fake_images.detach())
@@ -93,27 +103,42 @@ def train_GAN(args):
             optimizer_D.step()
             total_D_loss += D_loss.cpu().detach().numpy()
 
-            if epoch % args.sample_interval == 0 and i % (len(dataloader)/5) == 0:
-                save_image(fake_images.data[0, 0], "images/{}_{}.png".format(
-                    str(epoch).zfill(len(str(args.epochs))), str(i).zfill(len(str(len(dataloader))))), normalize=True)
 
-        print("[Epoch {}/{}] \t[D loss: {:.3f}] \t[G loss: {:.3f}]".format(epoch, args.epochs, total_D_loss, total_G_loss))
+        i += 1
+        z = torch.FloatTensor(np.random.normal(0, 1, size=(args.batch_size, args.latent_dim))).cuda()
+        fake_images = generator(z)
+        real_labels = torch.FloatTensor(args.batch_size, 1).fill_(1.0).cuda()
+
+
+
+        #  Update Generator
+        optimizer_G.zero_grad()
+        g_loss = adversarial_loss(discriminator(fake_images), real_labels)
+        g_loss.backward()
+        optimizer_G.step()
+        total_G_loss += g_loss.cpu().detach().numpy()
+
+        if iteration % args.sample_interval == 0 and i % (len(dataloader)/5) == 0:
+            save_image(fake_images.data[0, 0], "images/{}_{}.png".format(
+                str(iteration).zfill(len(str(args.iterations))), str(i).zfill(len(str(len(dataloader))))), normalize=True)
+
+        print("[iteration {}/{}] \t[D loss: {:.3f}] \t[G loss: {:.3f}]".format(iteration, args.iterations, total_D_loss, total_G_loss))
 
         # save models during training
-        torch.save({"epoch": epoch,
+        torch.save({"iteration": iteration,
                     "state_dict_G": generator.state_dict(),
                     "state_dict_D": discriminator.state_dict(),
                     "optimizer_G": optimizer_G.state_dict(),
                     "optimizer_D": optimizer_D.state_dict()}
                    , args.model_path)
 
-        if epoch % args.checkpoint_interval == 0:
-            torch.save({"epoch": epoch,
+        if iteration % args.checkpoint_interval == 0:
+            torch.save({"iteration": iteration,
                         "state_dict_G": generator.state_dict(),
                         "state_dict_D": discriminator.state_dict(),
                         "optimizer_G": optimizer_G.state_dict(),
                         "optimizer_D": optimizer_D.state_dict()
-                        }, "checkpoints/{epoch}.pth".format(epoch=epoch))
+                        }, "checkpoints/{}.pth".format(iteration))
 
 
 if __name__ == "__main__":
