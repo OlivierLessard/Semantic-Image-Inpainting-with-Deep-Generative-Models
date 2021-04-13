@@ -6,7 +6,7 @@ from torch import nn, optim
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
-import os
+import os, torchvision
 from torchvision.utils import save_image
 import random
 from load_folder import celeba_dataset_dataloader
@@ -22,7 +22,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="SVHN")
     parser.add_argument("--mask-type", type=str, default="Center")
-    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
 
@@ -30,7 +30,7 @@ def get_arguments():
     parser.add_argument("--image-size", type=int, default=64)
     parser.add_argument("--channels", type=int, default=3)
     parser.add_argument("--iterations", type=int, default=300)
-    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--d-steps", type=int, default=1)
     parser.add_argument("--optim-steps", type=int, default=1500)
     parser.add_argument("--blending-steps", type=int, default=3000)
@@ -59,7 +59,22 @@ def create_folders():
 
 
 def train_GAN(args):
+    # import torchvision.transforms as transforms
+    # train_data = torchvision.datasets.SVHN(
+    #     root="Datasets\SVHN",
+    #     split='train',
+    #     transform=torchvision.transforms.Compose([
+    #         transforms.Resize(64),
+    #         transforms.CenterCrop(64),
+    #         transforms.ToTensor(),
+    #         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), ]),
+    #     download=True
+    # )
+    # dataloader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+    #                                          shuffle=True, num_workers=workers)
+
     device = torch.device("cuda:0" if (torch.cuda.is_available() and args.ngpu > 0) else "cpu")
+    print("device:", device)
     create_folders()
 
     # Set random seed for reproducibility
@@ -69,7 +84,7 @@ def train_GAN(args):
 
     # get celebA dataset and dataloader
     dataset, dataloader = celeba_dataset_dataloader(args)
-
+    print("len dataset: ", dataset.__len__())
     # Plot some training images
     # real_batch = next(iter(dataloader))
     # plt.figure(figsize=(8, 8))
@@ -168,7 +183,7 @@ def train_GAN(args):
             optimizerG.step()
 
             # Output training stats
-            if i % 50 == 0:
+            if i % 10 == 0:
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, args.epochs, i, len(dataloader),
                          errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
