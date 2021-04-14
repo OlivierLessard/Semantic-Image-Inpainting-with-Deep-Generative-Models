@@ -47,19 +47,96 @@ def get_arguments():
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--lr", type=float, default=0.0002)
 
-    parser.add_argument("--model-path", type=str, default="checkpoints/dcgan.pth")
     parser.add_argument("--z-iteration", type=int, default=1000)
 
     args = parser.parse_args()
     return args
 
 
+def create_weights_one_channel():
+    mask = np.ones((64, 64), dtype=np.float32)
+
+    x = 25
+    y = 25
+    h = 40
+    w = 40
+
+    mask[x:h, y:w] = 0
+
+    window_size = 7
+
+    max_shift = window_size // 2
+    output = np.zeros_like(mask)
+
+    print("calculating weights")
+    for i in range(-max_shift, max_shift + 1):
+        for j in range(-max_shift, max_shift + 1):
+            if i != 0 or j != 0:
+                output += np.roll(mask, (i, j), axis=(0, 1))
+    output = 1 - output / (window_size * 2 - 1)
+
+    final = output*mask
+    return final
+
+
+def create_weights_three_channel():
+    mask = np.ones((3, 64, 64), dtype=np.float32)
+
+    x = 25
+    y = 25
+    h = 40
+    w = 40
+
+    mask[:, x:h, y:w] = 0
+
+    window_size = 7
+
+    max_shift = window_size // 2
+    output = np.zeros_like(mask)
+
+    print("calculating weights")
+    for i in range(-max_shift, max_shift + 1):
+        for j in range(-max_shift, max_shift + 1):
+            if i != 0 or j != 0:
+                output += np.roll(mask, (i, j), axis=(1, 2))
+    output = 1 - output / (window_size * 2 - 1)
+
+    final = output*mask
+    return final
+
+
+def apply_mask(original_images, mask_type="central"):
+    if mask_type == "central":
+        width = original_images.shape[2]
+        height = original_images.shape[3]
+        mask_position_x = int(width/2)
+        mask_position_y = int(height/2)
+        mask_width = 15
+        masks = torch.ones_like(original_images, dtype=torch.float32)
+        masks.cuda()
+        masks[:, :, int(mask_position_x - mask_width/2):int(mask_position_x + mask_width/2), int(mask_position_y - mask_width/2):int(mask_position_y + mask_width/2)] = 0
+        corrupted_images = original_images * masks
+
+        # plt.imshow(corrupted_images[0].permute(1, 2, 0))
+        # plt.show()
+    return corrupted_images
+
+
+def context_loss(corrupted_images, generated_images, mask_type="central", weighted=True):
+    corrupted_images = corrupted_images.cuda()
+
+    weights = torch.from_numpy(create_weights_three_channel())
+    weights = torch.unsqueeze(weights, dim=0).cuda()
+    weights = torch.repeat_interleave(weights, repeats=corrupted_images.shape[0], dim=0)
+    return (generated_images-corrupted_images)*weights
+
+
 def z_optimization(args):
     device = torch.device("cuda:0" if (torch.cuda.is_available() and args.ngpu > 0) else "cpu")
     print("device:", device)
 
-    # dataloader for corrupted images
-
+    # dataloader for original images
+    dataset, dataloader = celeba_dataset_dataloader(args)
 
     # load models
     netG = Generator(args).to(device)
@@ -76,18 +153,26 @@ def z_optimization(args):
     netD.eval()
 
     # freeze G and D
-
-    # get z^(0)
-    z = torch.randn(1, args.nz, 1, 1, device=device)
-    z.requires_grad = True
-    optimizerZ = optim.Adam(z, lr=args.lr, betas=(args.beta1, 0.999))
-
     print("Starting inpainting ...")
-    for i, (corrupted_images, original_images, masks, weighted_masks) in enumerate(dataloader):
+    for i, data_and_labels in enumerate(dataloader):
+        original_images = data_and_labels[0]
+        corrupted_images = apply_mask(original_images, mask_type="central")
 
+        # get z^(0)
+        b_size = original_images.size(0)
+        z = torch.randn(b_size, args.nz, 1, 1, device=device)
+        z.requires_grad = True
+        optimizerZ = optim.Adam([z], lr=args.lr, betas=(args.beta1, 0.999))
 
         print("Starting backprop to input:  z optimization ...")
         for iter in range(args.z_iteration):
+            optimizerZ.zero_grad()
+
+            fake_image = netG(z)
+            #plt.imshow(corrupted_images[0].permute(1, 2, 0))
+            c_loss = context_loss(corrupted_images, fake_image, mask_type="central", weighted=True)
+            prior_loss = 0
+            total_loss = c_loss + args.prior_weight*prior_loss
             continue
 
         # blend corrupted image with G(z)
