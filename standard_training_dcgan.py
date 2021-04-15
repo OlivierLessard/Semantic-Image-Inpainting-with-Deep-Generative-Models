@@ -246,7 +246,6 @@ def train_GAN(args):
                , args.model_path)
 
 
-
 if __name__ == "__main__":
     args = get_arguments()
     train_GAN(args)

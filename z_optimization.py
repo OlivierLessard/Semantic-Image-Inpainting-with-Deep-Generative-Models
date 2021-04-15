@@ -211,10 +211,18 @@ def poisson_blending():
     return initial_guess, blend_image
 
 
-def save_blend_images(corrupted_images, initial_guess, blend_images, save_count):
+def save_blend_images(original_images, corrupted_images, initial_guess, blend_images, save_count):
     if not os.path.exists("./Output/Blend/"):
         os.mkdir("./Output/Blend/")
     for i in range(blend_images.shape[0]):
+        image = original_images[i].permute(1, 2, 0).cpu().detach().numpy()
+        plt.title("original_images {}".format(i + save_count))
+        plt.imshow(image)
+        image = (image - np.min(image))
+        image = image / np.max(image)
+        plt.imsave("./Output/Blend/Image_{}_original.jpg".format(i + save_count), image)
+        # plt.show()
+
         image = corrupted_images[i].permute(1, 2, 0).cpu().detach().numpy()
         plt.title("corrupted_images {}".format(i+save_count))
         plt.imshow(image)
@@ -324,7 +332,7 @@ def z_optimization(args):
         initial_guess, blend_images = poisson_blending()
 
         # save images
-        save_blend_images(corrupted_images, initial_guess, blend_images, save_count)
+        save_blend_images(original_images, corrupted_images, initial_guess, blend_images, save_count)
         save_count += b_size
 
     return None
