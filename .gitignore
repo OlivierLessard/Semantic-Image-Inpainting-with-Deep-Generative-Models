@@ -141,3 +141,4 @@ images/
 checkpoints/iters_0.pth checkpoints/iters_1200.pth checkpoints/iters_1500.pth checkpoints/iters_1800.pth checkpoints/iters_300.pth checkpoints/iters_600.pth checkpoints/iters_900.pth
 checkpoints/dcgan.pth checkpoints/iters_0.pth checkpoints/iters_1200.pth checkpoints/iters_1500.pth checkpoints/iters_1800.pth checkpoints/iters_300.pth checkpoints/iters_600.pth checkpoints/iters_900.pth
 checkpoints_svhn/model.pth
+Output/tmp/

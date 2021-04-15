@@ -12,3 +12,8 @@ def save_learning_curves(G_losses, D_losses):
     plt.savefig("./Output/G_and_D_Loss_During_Training.png")
     plt.show()
     return None
+
+
+def plot_opt():
+    path1=""
+

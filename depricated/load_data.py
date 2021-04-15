@@ -27,7 +27,6 @@ class OriginalImages(Dataset):
         return torch.FloatTensor(target_image).permute(2, 0, 1)  # (3, 64, 64)
 
 
-
 def get_data(args):
     if args.dataset == "SVHN":
         train_data = torchvision.datasets.SVHN(
