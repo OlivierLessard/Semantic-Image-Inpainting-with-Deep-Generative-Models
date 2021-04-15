@@ -17,7 +17,7 @@ from dcgan import Generator, Discriminator
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="CelebA")
-    parser.add_argument("--mask-type", type=str, default="random")  # center, random
+    parser.add_argument("--mask-type", type=str, default="half")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
@@ -85,7 +85,7 @@ def create_weights_three_channel(masks, batch_size, mask_type="center"):
         weights = torch.unsqueeze(weights, dim=0).cuda()
         weights = torch.repeat_interleave(weights, repeats=batch_size, dim=0)
 
-    elif mask_type == "random":
+    elif mask_type == "random" or mask_type == "pattern" or mask_type == "half":
         # TODO
         weights = torch.zeros_like(masks)  # (128, 3, 64, 64)
 
@@ -125,6 +125,31 @@ def apply_mask(original_images, mask_type="center"):
         masks = torch.FloatTensor(original_images.shape).uniform_() > 0.8
         masks[:, 1, :, :] = masks[:, 0, :, :]
         masks[:, 2, :, :] = masks[:, 0, :, :]
+        masks = masks.float().cuda()
+        original_images = original_images.cuda()
+        corrupted_images = original_images * masks
+        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        plt.show()
+
+        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        plt.show()
+
+    elif mask_type == "pattern":  # 80% missing, random mask
+        masks = torch.FloatTensor(original_images.shape).uniform_() > 0.2
+        masks[:, 1, :, :] = masks[:, 0, :, :]
+        masks[:, 2, :, :] = masks[:, 0, :, :]
+        masks = masks.float().cuda()
+        original_images = original_images.cuda()
+        corrupted_images = original_images * masks
+        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        plt.show()
+
+        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        plt.show()
+
+    elif mask_type == "half":  # 80% missing, random mask
+        masks = torch.ones_like(original_images)
+        masks[:, :, 0:32, 0:64] = 0
         masks = masks.float().cuda()
         original_images = original_images.cuda()
         corrupted_images = original_images * masks

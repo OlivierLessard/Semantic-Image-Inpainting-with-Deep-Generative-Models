@@ -14,7 +14,7 @@ if __name__ == '__main__':
     Compute pnsr of a blend folder and save it in a text file
     """
     dataset = "celebA"
-    mask_type = "random"
+    mask_type = "half"
     dataset_path = "./Output/pnsr_{}/".format(dataset)
     if not os.path.exists(dataset_path):
         os.mkdir(dataset_path)
