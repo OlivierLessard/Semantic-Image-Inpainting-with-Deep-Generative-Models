@@ -16,8 +16,8 @@ from dcgan import Generator, Discriminator
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="SVHN")
-    parser.add_argument("--mask-type", type=str, default="Center")
+    parser.add_argument("--dataset", type=str, default="CelebA")
+    parser.add_argument("--mask-type", type=str, default="center")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
@@ -136,7 +136,9 @@ def context_loss(corrupted_images, generated_images, original_weigths, mask_type
     return torch.sum(torch.abs((generated_images-corrupted_images)*weights))
 
 
-def save_images_during_opt(fake_image, corrupted_images, i, iter):
+def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
+    z_opt_path = os.path.join("./Output/z_optimization/", args.mask_type)
+
     if not os.path.exists("./Output/z_optimization/"):
         os.mkdir("./Output/z_optimization/")
     first_image = fake_image[0].permute(1, 2, 0).cpu().detach().numpy()
@@ -286,7 +288,7 @@ def z_optimization(args):
             break
 
         original_images = data_and_labels[0]
-        corrupted_images, masks = apply_mask(original_images, mask_type="central")
+        corrupted_images, masks = apply_mask(original_images, mask_type=args.mask_type)
         original_weigths = create_weights_three_channel()
 
         # get z^(0)
@@ -310,7 +312,7 @@ def z_optimization(args):
                 plt.imshow(fake_image[0].permute(1, 2, 0).cpu().detach().numpy())
                 # plt.show()
             if iter == 0 or iter == args.z_iteration-1:
-                save_images_during_opt(fake_image, corrupted_images, i, iter)
+                save_images_during_opt(args, fake_image, corrupted_images, i, iter)
 
             # compute losses
             c_loss = context_loss(corrupted_images, fake_image, original_weigths, mask_type="central", weighted=True)
