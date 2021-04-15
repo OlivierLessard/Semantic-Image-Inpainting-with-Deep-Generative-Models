@@ -11,12 +11,6 @@ from torchvision.utils import save_image
 import torch.nn.functional as F
 import random
 from load_folder import celeba_dataset_dataloader
-from dcgan import weights_init
-import torchvision.utils as vutils
-from dcgan import Discriminator
-from visualization import save_learning_curves
-import matplotlib.animation as animation
-from IPython.display import HTML
 from dcgan import Generator, Discriminator
 
 
@@ -48,8 +42,8 @@ def get_arguments():
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--lr", type=float, default=0.002)
 
-    # parser.add_argument("--z-iteration", type=int, default=1000)
-    parser.add_argument("--z-iteration", type=int, default=100)
+    parser.add_argument("--z-iteration", type=int, default=1000)
+    # parser.add_argument("--z-iteration", type=int, default=100)
 
     args = parser.parse_args()
     return args
@@ -210,10 +204,10 @@ def poisson_blending():
     blend_image = masks * corrupted_images + (1 - masks) * image_optimum
     plt.title("blend_image[0]")
     plt.imshow(blend_image[0].permute(1, 2, 0).cpu().detach().numpy())
-    plt.show()
+    # plt.show()
     plt.title("corrupted_images[0]")
     plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-    plt.show()
+    # plt.show()
     return initial_guess, blend_image
 
 
@@ -278,7 +272,7 @@ def z_optimization(args):
     # freeze G and D
     print("Starting inpainting ...")
     save_count = 0
-    nb_batch_to_inpaint = 1
+    nb_batch_to_inpaint = 2
     for i, data_and_labels in enumerate(dataloader):
         if i == nb_batch_to_inpaint:
             break
