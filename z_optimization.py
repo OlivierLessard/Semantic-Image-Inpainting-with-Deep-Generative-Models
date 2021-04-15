@@ -17,7 +17,7 @@ from dcgan import Generator, Discriminator
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="CelebA")
-    parser.add_argument("--mask-type", type=str, default="center")  # center, random
+    parser.add_argument("--mask-type", type=str, default="random")  # center, random
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
@@ -87,7 +87,24 @@ def create_weights_three_channel(masks, batch_size, mask_type="center"):
 
     elif mask_type == "random":
         # TODO
-        mask = masks
+        weights = torch.zeros_like(masks)  # (128, 3, 64, 64)
+
+        print("calculating weights")
+        window_size = 7
+        max_shift = window_size // 2
+
+        for b in range(masks.shape[0]):
+
+            mask = masks[b].squeeze().cpu().detach().numpy()
+            output = np.zeros_like(mask)
+            for i in range(-max_shift, max_shift + 1):
+                for j in range(-max_shift, max_shift + 1):
+                    if i != 0 or j != 0:
+                        output += np.roll(mask, (i, j), axis=(1, 2))
+            output = 1 - (output / (window_size ** 2 - 1))
+            final = output * mask
+
+            weights[b] = torch.from_numpy(final)
 
     return weights  # (128, 3, 64, 64)
 
@@ -105,9 +122,16 @@ def apply_mask(original_images, mask_type="center"):
         corrupted_images = original_images * masks
 
     elif mask_type == "random":  # 80% missing, random mask
-        masks = torch.FloatTensor(original_images.shape, device="cuda:0").uniform_() > 0.8
+        masks = torch.FloatTensor(original_images.shape).uniform_() > 0.8
+        masks[:, 1, :, :] = masks[:, 0, :, :]
+        masks[:, 2, :, :] = masks[:, 0, :, :]
+        masks = masks.float().cuda()
+        original_images = original_images.cuda()
         corrupted_images = original_images * masks
-        plt.imshow(corrupted_images[0].permute(1, 2, 0))
+        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        plt.show()
+
+        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
         plt.show()
 
     return corrupted_images, masks
