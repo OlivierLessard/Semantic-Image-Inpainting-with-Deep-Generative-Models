@@ -35,7 +35,7 @@ def get_arguments():
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--d-steps", type=int, default=1)
     parser.add_argument("--optim-steps", type=int, default=1500)
-    parser.add_argument("--blending-steps", type=int, default=3000)
+    parser.add_argument("--blending-steps", type=int, default=5000)
     parser.add_argument("--prior-weight", type=float, default=0.003)
     parser.add_argument("--window-size", type=int, default=25)
     parser.add_argument("--checkpoint-interval", type=int, default=300)
@@ -48,8 +48,8 @@ def get_arguments():
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--lr", type=float, default=0.002)
 
-    parser.add_argument("--z-iteration", type=int, default=1000)
-    # parser.add_argument("--z-iteration", type=int, default=10)
+    # parser.add_argument("--z-iteration", type=int, default=1000)
+    parser.add_argument("--z-iteration", type=int, default=100)
 
     args = parser.parse_args()
     return args
@@ -124,7 +124,7 @@ def apply_mask(original_images, mask_type="central"):
     return corrupted_images, masks
 
 
-def context_loss(corrupted_images, generated_images, mask_type="central", weighted=True, original_weigths):
+def context_loss(corrupted_images, generated_images, original_weigths, mask_type="central", weighted=True):
     """
     :param corrupted_images: (batch_size, 3, 64, 64)
     :param generated_images: (batch_size, 3, 64, 64)
@@ -179,17 +179,18 @@ def image_gradient(image):
 
 
 def poisson_blending():
+    # load last batch
     masks = torch.load('./Output/tmp/masks.pt', map_location=torch.device('cuda:0'))
-    fake_images = torch.load('./Output/tmp/fake_images.pt', map_location=torch.device('cuda:0'))
+    original_fake_images = torch.load('./Output/tmp/fake_images.pt', map_location=torch.device('cuda:0'))
+    fake_pixels = torch.load('./Output/tmp/fake_images.pt', map_location=torch.device('cuda:0'))
     corrupted_images = torch.load('./Output/tmp/corrupted_images.pt', map_location=torch.device('cuda:0'))
 
-    initial_guess = masks * corrupted_images + (1-masks) * fake_images
-    # plt.imshow(initial_guess[0].permute(1, 2, 0).cpu().detach().numpy())
-    # plt.show()
-    image_optimum = nn.Parameter(torch.FloatTensor(initial_guess.detach().cpu().numpy()).cuda(), requires_grad=True)
-    optimizer_blending = optim.Adam([image_optimum], lr=0.001)
+    # define opt for fake_pixels
+    initial_guess = masks * corrupted_images + (1-masks) * fake_pixels
+    optimizer_blending = optim.Adam([fake_pixels], lr=0.0001)
 
-    fake_grad_x, fake_grad_y = image_gradient(fake_images)
+    # We want the gradient of image_optimum to be like this one
+    target_grad_x, target_grad_y = image_gradient(original_fake_images)
 
     criterion = nn.MSELoss()
 
@@ -199,11 +200,14 @@ def poisson_blending():
     for epoch in range(args.blending_steps):
         optimizer_blending.zero_grad()
 
-        # compute loss and update image_optimum
-        image_optimum_grad_x, image_optimum_grad_y = image_gradient(image_optimum)
+        # compute loss and update
+        image_optimum = masks * corrupted_images + (1 - masks) * fake_pixels
+        optimum_grad_x, optimum_grad_y = image_gradient(image_optimum)
 
-        blending_loss_x = criterion(fake_grad_x*(1-mask_1d), image_optimum_grad_x*(1-mask_1d))
-        blending_loss_y = criterion(fake_grad_y*(1-mask_1d), image_optimum_grad_y*(1-mask_1d))
+        # blending_loss_x = criterion(target_grad_x*(1-mask_1d), optimum_grad_x*(1-mask_1d))
+        # blending_loss_y = criterion(target_grad_y*(1-mask_1d), optimum_grad_y*(1-mask_1d))
+        blending_loss_x = criterion(target_grad_x, optimum_grad_x)
+        blending_loss_y = criterion(target_grad_y, optimum_grad_y)
 
         # add the gradients
         blending_loss = blending_loss_x + blending_loss_y
@@ -285,7 +289,11 @@ def z_optimization(args):
     # freeze G and D
     print("Starting inpainting ...")
     save_count = 0
+    nb_batch_to_inpaint = 1
     for i, data_and_labels in enumerate(dataloader):
+        if i == nb_batch_to_inpaint:
+            break
+
         original_images = data_and_labels[0]
         corrupted_images, masks = apply_mask(original_images, mask_type="central")
         original_weigths = create_weights_three_channel()
@@ -314,7 +322,7 @@ def z_optimization(args):
                 save_images_during_opt(fake_image, corrupted_images, i, iter)
 
             # compute losses
-            c_loss = context_loss(corrupted_images, fake_image, mask_type="central", weighted=True, original_weigths)
+            c_loss = context_loss(corrupted_images, fake_image, original_weigths, mask_type="central", weighted=True)
             fake_prediction = netD(fake_image)
             fake_prediction = torch.squeeze(fake_prediction)
             real_label = torch.ones(corrupted_images.shape[0], device=device)
@@ -331,7 +339,7 @@ def z_optimization(args):
         save_tensors(masks, fake_image, corrupted_images)
         initial_guess, blend_images = poisson_blending()
 
-        # save image
+        # save images
         save_blend_images(corrupted_images, initial_guess, blend_images, save_count)
         save_count += b_size
 

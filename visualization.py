@@ -14,6 +14,3 @@ def save_learning_curves(G_losses, D_losses):
     return None
 
 
-def plot_opt():
-    path1=""
-
