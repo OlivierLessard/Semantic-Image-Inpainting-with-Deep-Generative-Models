@@ -17,7 +17,7 @@ from dcgan import Generator, Discriminator
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="CelebA")
-    parser.add_argument("--mask-type", type=str, default="center")
+    parser.add_argument("--mask-type", type=str, default="center")  # center, random
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
@@ -49,113 +49,109 @@ def get_arguments():
     return args
 
 
-def create_weights_one_channel():
-    mask = np.ones((64, 64), dtype=np.float32)
+def create_weights_three_channel(masks, batch_size, mask_type="center"):
+    """
+    Create the weights (batchsize, channnels, w, h) to apply later for the loss
+    :param masks:
+    :param batch_size:
+    :param mask_type:
+    :return:
+    """
+    if mask_type == "center":
+        x = 20
+        y = 20
+        h = 45
+        w = 45
 
-    x = 25
-    y = 25
-    h = 40
-    w = 40
+        mask = np.ones((3, 64, 64), dtype=np.float32)
+        mask[:, x:h, y:w] = 0
 
-    mask[x:h, y:w] = 0
+        window_size = 7
 
-    window_size = 7
+        max_shift = window_size // 2
+        output = np.zeros_like(mask)
 
-    max_shift = window_size // 2
-    output = np.zeros_like(mask)
+        print("calculating weights")
+        for i in range(-max_shift, max_shift + 1):
+            for j in range(-max_shift, max_shift + 1):
+                if i != 0 or j != 0:
+                    output += np.roll(mask, (i, j), axis=(1, 2))
+        output = 1 - (output / (window_size ** 2 - 1))
 
-    print("calculating weights")
-    for i in range(-max_shift, max_shift + 1):
-        for j in range(-max_shift, max_shift + 1):
-            if i != 0 or j != 0:
-                output += np.roll(mask, (i, j), axis=(0, 1))
-    output = 1 - output / (window_size ** 2 - 1)
+        final = output * mask
 
-    final = output*mask
-    return final
+        # create batch weights (128, 3, 64, 64)
+        weights = torch.from_numpy(final)  # ndarray (3, 64, 64)
+        weights = torch.unsqueeze(weights, dim=0).cuda()
+        weights = torch.repeat_interleave(weights, repeats=batch_size, dim=0)
 
+    elif mask_type == "random":
+        # TODO
+        mask = masks
 
-def create_weights_three_channel():
-    mask = np.ones((3, 64, 64), dtype=np.float32)
-
-    x = 25
-    y = 25
-    h = 40
-    w = 40
-
-    mask[:, x:h, y:w] = 0
-
-    window_size = 7
-
-    max_shift = window_size // 2
-    output = np.zeros_like(mask)
-
-    print("calculating weights")
-    for i in range(-max_shift, max_shift + 1):
-        for j in range(-max_shift, max_shift + 1):
-            if i != 0 or j != 0:
-                output += np.roll(mask, (i, j), axis=(1, 2))
-    output = 1 - (output / (window_size ** 2 - 1))
-
-    final = output*mask
-    return final
+    return weights  # (128, 3, 64, 64)
 
 
-def apply_mask(original_images, mask_type="central"):
-    if mask_type == "central":
+def apply_mask(original_images, mask_type="center"):
+    if mask_type == "center":
         width = original_images.shape[2]
         height = original_images.shape[3]
         mask_position_x = int(width/2)
         mask_position_y = int(height/2)
-        mask_width = 15
+        mask_width = 25
         masks = torch.ones_like(original_images, dtype=torch.float32)
         masks.cuda()
         masks[:, :, int(mask_position_x - mask_width/2):int(mask_position_x + mask_width/2), int(mask_position_y - mask_width/2):int(mask_position_y + mask_width/2)] = 0
         corrupted_images = original_images * masks
 
-        # plt.imshow(corrupted_images[0].permute(1, 2, 0))
-        # plt.show()
+    elif mask_type == "random":  # 80% missing, random mask
+        masks = torch.FloatTensor(original_images.shape, device="cuda:0").uniform_() > 0.8
+        corrupted_images = original_images * masks
+        plt.imshow(corrupted_images[0].permute(1, 2, 0))
+        plt.show()
+
     return corrupted_images, masks
 
 
-def context_loss(corrupted_images, generated_images, original_weigths, mask_type="central", weighted=True):
+def context_loss(corrupted_images, generated_images, weights, mask_type="central"):
     """
     :param corrupted_images: (batch_size, 3, 64, 64)
     :param generated_images: (batch_size, 3, 64, 64)
-    :param mask_type:
-    :param weighted:
+    :param weigths:          (batch_size, 3, 64, 64)
+    :param mask_type: str
     :return: (batch_size,)
     """
     corrupted_images = corrupted_images.cuda()
 
-    weights = torch.from_numpy(original_weigths)  # ndarray (3, 64, 64)
-    weights = torch.unsqueeze(weights, dim=0).cuda()
-    weights = torch.repeat_interleave(weights, repeats=corrupted_images.shape[0], dim=0)
-
-    # return torch.sum(torch.abs((generated_images-corrupted_images)*weights), dim=(1, 2, 3))
     return torch.sum(torch.abs((generated_images-corrupted_images)*weights))
 
 
 def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
-    z_opt_path = os.path.join("./Output/z_optimization/", args.mask_type)
-
     if not os.path.exists("./Output/z_optimization/"):
         os.mkdir("./Output/z_optimization/")
+    z_opt_path = os.path.join("./Output/z_optimization/", args.mask_type)
+    if not os.path.exists(z_opt_path):
+        os.mkdir(z_opt_path)
+
+    # save current fake image
     first_image = fake_image[0].permute(1, 2, 0).cpu().detach().numpy()
     plt.title("fake image [0] iter 0 ")
     plt.imshow(first_image)
     first_image = (first_image - np.min(first_image))
     first_image = first_image / np.max(first_image)
-    plt.imsave("./Output/z_optimization/Batch_{}_fake_iter_{}.jpg".format(i, iter), first_image)
+    save_path = os.path.join(z_opt_path, "Batch_{}_fake_iter_{}.jpg".format(i, iter))
+    plt.imsave(save_path, first_image)
     # plt.show()
 
+    # save the real image only at beginning, won't change
     if iter == 0:
         first_image = corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy()
         plt.title("real image [0] iter 0 ")
         plt.imshow(first_image)
         first_image = (first_image - np.min(first_image))
         first_image = first_image / np.max(first_image)
-        plt.imsave("./Output/z_optimization/Batch_{}_real_iter_{}.jpg".format(i, iter), first_image)
+        save_path = os.path.join(z_opt_path, "Batch_{}_real_iter_{}.jpg".format(i, iter))
+        plt.imsave(save_path, first_image)
         # plt.show()
     return None
 
@@ -213,16 +209,22 @@ def poisson_blending():
     return initial_guess, blend_image
 
 
-def save_blend_images(original_images, corrupted_images, initial_guess, blend_images, save_count):
-    if not os.path.exists("./Output/Blend/"):
-        os.mkdir("./Output/Blend/")
+def save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count):
+    blend_path = "./Output/Blend/"
+    if not os.path.exists(blend_path):
+        os.mkdir(blend_path)
+    blend_mask_path = os.path.join(blend_path, args.mask_type)
+    if not os.path.exists(blend_mask_path):
+        os.mkdir(blend_mask_path)
+
     for i in range(blend_images.shape[0]):
         image = original_images[i].permute(1, 2, 0).cpu().detach().numpy()
         plt.title("original_images {}".format(i + save_count))
         plt.imshow(image)
         image = (image - np.min(image))
         image = image / np.max(image)
-        plt.imsave("./Output/Blend/Image_{}_original.jpg".format(i + save_count), image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_original.jpg".format(i + save_count))
+        plt.imsave(save_path, image)
         # plt.show()
 
         image = corrupted_images[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -230,7 +232,8 @@ def save_blend_images(original_images, corrupted_images, initial_guess, blend_im
         plt.imshow(image)
         image = (image - np.min(image))
         image = image / np.max(image)
-        plt.imsave("./Output/Blend/Image_{}_corrupted.jpg".format(i+save_count), image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_corrupted.jpg".format(i + save_count))
+        plt.imsave(save_path, image)
         #plt.show()
 
         image = initial_guess[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -238,7 +241,8 @@ def save_blend_images(original_images, corrupted_images, initial_guess, blend_im
         plt.imshow(image)
         image = (image - np.min(image))
         image = image / np.max(image)
-        plt.imsave("./Output/Blend/Image_{}_initial_guess.jpg".format(i+save_count), image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_initial_guess.jpg".format(i + save_count))
+        plt.imsave(save_path, image)
         # plt.show()
 
         image = blend_images[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -246,7 +250,8 @@ def save_blend_images(original_images, corrupted_images, initial_guess, blend_im
         plt.imshow(image)
         image = (image - np.min(image))
         image = image / np.max(image)
-        plt.imsave("./Output/Blend/Image_{}_blend.jpg".format(i+save_count), image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_blend.jpg".format(i + save_count))
+        plt.imsave(save_path, image)
         #plt.show()
 
 
@@ -273,13 +278,13 @@ def z_optimization(args):
     netG.load_state_dict(checkpoint['state_dict_G'])
     netD.load_state_dict(checkpoint['state_dict_D'])
 
+    # freeze G and D
     netG.eval()
     netD.eval()
 
     # Initialize BCELoss function
     criterion = nn.BCELoss(reduction='sum')
 
-    # freeze G and D
     print("Starting inpainting ...")
     save_count = 0
     nb_batch_to_inpaint = 2
@@ -289,7 +294,7 @@ def z_optimization(args):
 
         original_images = data_and_labels[0]
         corrupted_images, masks = apply_mask(original_images, mask_type=args.mask_type)
-        original_weigths = create_weights_three_channel()
+        original_weigths = create_weights_three_channel(masks, batch_size=original_images.shape[0], mask_type=args.mask_type)
 
         # get z^(0)
         b_size = original_images.size(0)
@@ -315,7 +320,7 @@ def z_optimization(args):
                 save_images_during_opt(args, fake_image, corrupted_images, i, iter)
 
             # compute losses
-            c_loss = context_loss(corrupted_images, fake_image, original_weigths, mask_type="central", weighted=True)
+            c_loss = context_loss(corrupted_images, fake_image, original_weigths, mask_type="central")
             fake_prediction = netD(fake_image)
             fake_prediction = torch.squeeze(fake_prediction)
             real_label = torch.ones(corrupted_images.shape[0], device=device)
@@ -329,12 +334,11 @@ def z_optimization(args):
             print("iters {}, loss {}".format(iter, total_loss))
 
         # blend corrupted image with G(z)
-        # blend_images = cv_blending(fake_image, corrupted_images, masks, center=(32, 32))
         save_tensors(masks, fake_image, corrupted_images)
         initial_guess, blend_images = poisson_blending()
 
         # save images
-        save_blend_images(original_images, corrupted_images, initial_guess, blend_images, save_count)
+        save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count)
         save_count += b_size
 
     return None

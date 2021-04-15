@@ -14,14 +14,23 @@ if __name__ == '__main__':
     Compute pnsr of a blend folder and save it in a text file
     """
     dataset = "celebA"
-    if not os.path.exists("./Output/pnsr_{}/".format(dataset)):
-        os.mkdir("./Output/pnsr_{}/".format(dataset))
-    a_file = open("./Output/pnsr_{}/pnsr.txt".format(dataset), "w")
+    mask_type = "center"
+    dataset_path = "./Output/pnsr_{}/".format(dataset)
+    if not os.path.exists(dataset_path):
+        os.mkdir(dataset_path)
+    mask_type_path = os.path.join(dataset_path, mask_type)
+    if not os.path.exists(mask_type_path):
+        os.mkdir(mask_type_path)
+    save_path = os.path.join(mask_type_path, "pnsr.txt".format(dataset))
+    a_file = open(save_path, "w")
 
     list_pnsr = []
-    for i in range(int(len(os.listdir('./Output/Blend/'))/4)):
-        blend = plt.imread('./Output/Blend/Image_{}_blend.jpg'.format(i))
-        original_image = plt.imread('./Output/Blend/Image_{}_original.jpg'.format(i))
+    blend_path = os.path.join("./Output/BLend/", mask_type+"/")
+    for i in range(int(len(os.listdir(blend_path))/4)):
+        read_path = os.path.join(blend_path, 'Image_{}_blend.jpg'.format(i))
+        blend = plt.imread(read_path)
+        read_path = os.path.join(blend_path, 'Image_{}_original.jpg'.format(i))
+        original_image = plt.imread(read_path)
 
         current_pnsr = pnsr(original_image, blend)
 
