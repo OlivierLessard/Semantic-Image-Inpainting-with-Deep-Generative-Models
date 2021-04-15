@@ -165,17 +165,12 @@ def save_images_during_opt(fake_image, corrupted_images, i, iter):
 
 
 def image_gradient(image):
-    a = torch.Tensor([[[[1, 0, -1],
-                        [2, 0, -2],
-                        [1, 0, -1]]]]).cuda()
-    a = torch.repeat_interleave(a, repeats=3, dim=1)
-    b = torch.Tensor([[[[1, 2, 1],
-                        [0, 0, 0],
-                        [-1, -2, -1]]]]).cuda()
-    b = torch.repeat_interleave(b, repeats=3, dim=1)
-    G_x = F.conv2d(image, a, padding=1)
-    G_y = F.conv2d(image, b, padding=1)
-    return G_x, G_y
+    lap = torch.Tensor([[[[0, -1, 0],
+                        [-1, 4, -1],
+                        [0, -1, 0]]]]).cuda()
+    lap = torch.repeat_interleave(lap, repeats=3, dim=1)
+    G = F.conv2d(image, lap, padding=1)
+    return G
 
 
 def poisson_blending():
@@ -190,11 +185,9 @@ def poisson_blending():
     optimizer_blending = optim.Adam([fake_pixels], lr=0.0001)
 
     # We want the gradient of image_optimum to be like this one
-    target_grad_x, target_grad_y = image_gradient(original_fake_images)
+    target_grad = image_gradient(original_fake_images)
 
     criterion = nn.MSELoss()
-
-    mask_1d = torch.from_numpy(create_weights_one_channel()).cuda()
 
     print("Starting Poisson blending ...")
     for epoch in range(args.blending_steps):
@@ -202,15 +195,11 @@ def poisson_blending():
 
         # compute loss and update
         image_optimum = masks * corrupted_images + (1 - masks) * fake_pixels
-        optimum_grad_x, optimum_grad_y = image_gradient(image_optimum)
+        optimum_grad = image_gradient(image_optimum)
 
-        # blending_loss_x = criterion(target_grad_x*(1-mask_1d), optimum_grad_x*(1-mask_1d))
-        # blending_loss_y = criterion(target_grad_y*(1-mask_1d), optimum_grad_y*(1-mask_1d))
-        blending_loss_x = criterion(target_grad_x, optimum_grad_x)
-        blending_loss_y = criterion(target_grad_y, optimum_grad_y)
+        blending_loss = criterion(target_grad, optimum_grad)**2
 
         # add the gradients
-        blending_loss = blending_loss_x + blending_loss_y
         blending_loss.backward(retain_graph=True)  # retain_graph=True
         # update image_optimum
         optimizer_blending.step()
@@ -336,6 +325,7 @@ def z_optimization(args):
             print("iters {}, loss {}".format(iter, total_loss))
 
         # blend corrupted image with G(z)
+        # blend_images = cv_blending(fake_image, corrupted_images, masks, center=(32, 32))
         save_tensors(masks, fake_image, corrupted_images)
         initial_guess, blend_images = poisson_blending()
 
