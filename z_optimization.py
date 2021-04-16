@@ -16,7 +16,7 @@ from dcgan import Generator, Discriminator
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="CelebA")    # svhn, CelebA
+    parser.add_argument("--dataset", type=str, default="svhn")    # svhn, CelebA
     parser.add_argument("--mask-type", type=str, default="half")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
@@ -43,7 +43,7 @@ def get_arguments():
     parser.add_argument("--lr", type=float, default=0.002)
 
     parser.add_argument("--z-iteration", type=int, default=1000)
-    # parser.add_argument("--z-iteration", type=int, default=100)
+    # parser.add_argument("--z-iteration", type=int, default=10)
 
     args = parser.parse_args()
     return args
@@ -129,10 +129,10 @@ def apply_mask(original_images, mask_type="center"):
         original_images = original_images.cuda()
         corrupted_images = original_images * masks
         plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
         plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
     elif mask_type == "pattern":  # 80% missing, random mask
         masks = torch.FloatTensor(original_images.shape).uniform_() > 0.2
@@ -142,10 +142,10 @@ def apply_mask(original_images, mask_type="center"):
         original_images = original_images.cuda()
         corrupted_images = original_images * masks
         plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
         plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
     elif mask_type == "half":  # 80% missing, random mask
         masks = torch.ones_like(original_images)
@@ -154,10 +154,10 @@ def apply_mask(original_images, mask_type="center"):
         original_images = original_images.cuda()
         corrupted_images = original_images * masks
         plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
         plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        plt.show()
+        # plt.show()
 
     return corrupted_images, masks
 
@@ -286,6 +286,7 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         image = (image - np.min(image))
         image = image / np.max(image)
         save_path = os.path.join(blend_mask_path, "Image_{}_corrupted.jpg".format(i + save_count))
+        image = image * (corrupted_i != 0)
         plt.imsave(save_path, image)
         #plt.show()
 
@@ -329,12 +330,19 @@ def z_optimization(args):
     print("device:", device)
 
     # dataloader for original images
-    dataset, dataloader = celeba_dataset_dataloader(args)
+    if args.dataset == "CelebA":
+        dataset, dataloader = celeba_dataset_dataloader(args)
+    if args.dataset == "svhn":
+        from load_folder import svhn_dataset_dataloader
+        dataset, dataloader = svhn_dataset_dataloader(args)
 
     # load models
     netG = Generator(args).to(device)
     netD = Discriminator(args).to(device)
-    checkpoint = torch.load(args.model_path)
+    if args.dataset == "CelebA":
+        checkpoint = torch.load(args.model_path)
+    if args.dataset == "svhn":
+        checkpoint = torch.load("./checkpoints_svhn/model.pth")
     netG.load_state_dict(checkpoint['state_dict_G'])
     netD.load_state_dict(checkpoint['state_dict_D'])
 
@@ -347,7 +355,7 @@ def z_optimization(args):
 
     print("Starting inpainting ...")
     save_count = 0
-    nb_batch_to_inpaint = 2
+    nb_batch_to_inpaint = 1
     for i, data_and_labels in enumerate(dataloader):
         if i == nb_batch_to_inpaint:
             break
