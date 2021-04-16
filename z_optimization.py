@@ -16,7 +16,7 @@ from dcgan import Generator, Discriminator
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="CelebA")
+    parser.add_argument("--dataset", type=str, default="CelebA")    # svhn, CelebA
     parser.add_argument("--mask-type", type=str, default="half")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
@@ -176,11 +176,12 @@ def context_loss(corrupted_images, generated_images, weights, mask_type="central
 
 
 def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
-    if not os.path.exists("./Output/z_optimization/"):
-        os.mkdir("./Output/z_optimization/")
-    z_opt_path = os.path.join("./Output/z_optimization/", args.mask_type)
+    z_opt_path = os.path.join("./Output_{}".format(args.dataset), "z_optimization")
     if not os.path.exists(z_opt_path):
         os.mkdir(z_opt_path)
+    z_opt_mask_path = os.path.join(z_opt_path, args.mask_type)
+    if not os.path.exists(z_opt_mask_path):
+        os.mkdir(z_opt_mask_path)
 
     # save current fake image
     first_image = fake_image[0].permute(1, 2, 0).cpu().detach().numpy()
@@ -188,7 +189,7 @@ def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
     plt.imshow(first_image)
     first_image = (first_image - np.min(first_image))
     first_image = first_image / np.max(first_image)
-    save_path = os.path.join(z_opt_path, "Batch_{}_fake_iter_{}.jpg".format(i, iter))
+    save_path = os.path.join(z_opt_mask_path, "Batch_{}_fake_iter_{}.jpg".format(i, iter))
     plt.imsave(save_path, first_image)
     # plt.show()
 
@@ -199,7 +200,7 @@ def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
         plt.imshow(first_image)
         first_image = (first_image - np.min(first_image))
         first_image = first_image / np.max(first_image)
-        save_path = os.path.join(z_opt_path, "Batch_{}_real_iter_{}.jpg".format(i, iter))
+        save_path = os.path.join(z_opt_mask_path, "Batch_{}_real_iter_{}.jpg".format(i, iter))
         plt.imsave(save_path, first_image)
         # plt.show()
     return None
@@ -216,10 +217,10 @@ def image_gradient(image):
 
 def poisson_blending():
     # load last batch
-    masks = torch.load('./Output/tmp/masks.pt', map_location=torch.device('cuda:0'))
-    original_fake_images = torch.load('./Output/tmp/fake_images.pt', map_location=torch.device('cuda:0'))
-    fake_pixels = torch.load('./Output/tmp/fake_images.pt', map_location=torch.device('cuda:0'))
-    corrupted_images = torch.load('./Output/tmp/corrupted_images.pt', map_location=torch.device('cuda:0'))
+    masks = torch.load('./tmp/masks.pt', map_location=torch.device('cuda:0'))
+    original_fake_images = torch.load('./tmp/fake_images.pt', map_location=torch.device('cuda:0'))
+    fake_pixels = torch.load('./tmp/fake_images.pt', map_location=torch.device('cuda:0'))
+    corrupted_images = torch.load('./tmp/corrupted_images.pt', map_location=torch.device('cuda:0'))
 
     # define opt for fake_pixels
     initial_guess = masks * corrupted_images + (1-masks) * fake_pixels
@@ -259,15 +260,17 @@ def poisson_blending():
 
 
 def save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count):
-    blend_path = "./Output/Blend/"
+    blend_path = os.path.join("./Output_{}/".format(args.dataset), "Blend/")
     if not os.path.exists(blend_path):
         os.mkdir(blend_path)
     blend_mask_path = os.path.join(blend_path, args.mask_type)
     if not os.path.exists(blend_mask_path):
         os.mkdir(blend_mask_path)
 
+    titles = ["original", "corrupted", "initial_guess", "blend"]
     for i in range(blend_images.shape[0]):
         image = original_images[i].permute(1, 2, 0).cpu().detach().numpy()
+        original_i = image
         plt.title("original_images {}".format(i + save_count))
         plt.imshow(image)
         image = (image - np.min(image))
@@ -277,6 +280,7 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         # plt.show()
 
         image = corrupted_images[i].permute(1, 2, 0).cpu().detach().numpy()
+        corrupted_i = image
         plt.title("corrupted_images {}".format(i+save_count))
         plt.imshow(image)
         image = (image - np.min(image))
@@ -286,6 +290,7 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         #plt.show()
 
         image = initial_guess[i].permute(1, 2, 0).cpu().detach().numpy()
+        first_guess_i = image
         plt.title("initial_guess {}".format(i+save_count))
         plt.imshow(image)
         image = (image - np.min(image))
@@ -295,6 +300,7 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         # plt.show()
 
         image = blend_images[i].permute(1, 2, 0).cpu().detach().numpy()
+        blend_image_i = image
         plt.title("blended image {}".format(i+save_count))
         plt.imshow(image)
         image = (image - np.min(image))
@@ -303,13 +309,18 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         plt.imsave(save_path, image)
         #plt.show()
 
+        from visualization import show_images
+        arrays = [original_i, corrupted_i, first_guess_i, blend_image_i]
+        save_name = os.path.join(blend_mask_path, "Image_{}_all.jpg".format(i + save_count))
+        show_images(arrays, save_name, cols=1, titles=titles)
+
 
 def save_tensors(masks, fake_image, corrupted_images):
-    if not os.path.exists("./Output/tmp/"):
-        os.mkdir("./Output/tmp/")
-    torch.save(masks, './Output/tmp/masks.pt')
-    torch.save(fake_image, './Output/tmp/fake_images.pt')
-    torch.save(corrupted_images, './Output/tmp/corrupted_images.pt')
+    if not os.path.exists("./tmp/"):
+        os.mkdir("./tmp/")
+    torch.save(masks, './tmp/masks.pt')
+    torch.save(fake_image, './tmp/fake_images.pt')
+    torch.save(corrupted_images, './tmp/corrupted_images.pt')
     return None
 
 
@@ -356,15 +367,7 @@ def z_optimization(args):
             optimizerZ.zero_grad()
 
             fake_image = netG(z)
-            # check current fake_image
-            plots = False
-            if plots:
-                plt.title("corrupted_images[0]")
-                plt.imshow(corrupted_images[0].permute(1, 2, 0))
-                # plt.show()
-                plt.title("fake image [0]")
-                plt.imshow(fake_image[0].permute(1, 2, 0).cpu().detach().numpy())
-                # plt.show()
+
             if iter == 0 or iter == args.z_iteration-1:
                 save_images_during_opt(args, fake_image, corrupted_images, i, iter)
 

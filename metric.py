@@ -13,9 +13,10 @@ if __name__ == '__main__':
     """
     Compute pnsr of a blend folder and save it in a text file
     """
-    dataset = "celebA"
-    mask_type = "half"
-    dataset_path = "./Output/pnsr_{}/".format(dataset)
+    dataset = "CelebA"
+    mask_type = "center"  # center, random, pattern, half
+
+    dataset_path = "./Output_{}/pnsr_{}/".format(dataset, dataset)
     if not os.path.exists(dataset_path):
         os.mkdir(dataset_path)
     mask_type_path = os.path.join(dataset_path, mask_type)
@@ -25,8 +26,8 @@ if __name__ == '__main__':
     a_file = open(save_path, "w")
 
     list_pnsr = []
-    blend_path = os.path.join("./Output/BLend/", mask_type+"/")
-    for i in range(int(len(os.listdir(blend_path))/4)):
+    blend_path = os.path.join("./Output_{}/BLend/".format(dataset), mask_type+"/")
+    for i in range(int(len(os.listdir(blend_path))/5)):
         read_path = os.path.join(blend_path, 'Image_{}_blend.jpg'.format(i))
         blend = plt.imread(read_path)
         read_path = os.path.join(blend_path, 'Image_{}_original.jpg'.format(i))
