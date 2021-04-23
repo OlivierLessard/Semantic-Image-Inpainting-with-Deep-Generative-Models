@@ -184,7 +184,7 @@ def apply_mask(original_images, mask_type="center"):
     return corrupted_images, masks
 
 
-def context_loss(corrupted_images, generated_images, weights, mask_type="central"):
+def context_loss(corrupted_images, generated_images, weights):
     """
     :param corrupted_images: (batch_size, 3, 64, 64)
     :param generated_images: (batch_size, 3, 64, 64)
@@ -236,17 +236,21 @@ def image_gradient(image):
 
 
 def poisson_blending():
-    # load last batch
+    """
+    Backprop to the fake_pixels to obtain a keep the same gradient in the image as the fake image
+    :return: initial and final guess
+    """
+    # load last batch, pixels in range [-1, 1]
     masks = torch.load('./tmp/masks.pt', map_location=torch.device('cuda:0'))
     original_fake_images = torch.load('./tmp/fake_images.pt', map_location=torch.device('cuda:0'))
     fake_pixels = torch.load('./tmp/fake_images.pt', map_location=torch.device('cuda:0'))
     corrupted_images = torch.load('./tmp/corrupted_images.pt', map_location=torch.device('cuda:0'))
 
     # define opt for fake_pixels
-    initial_guess = masks * corrupted_images + (1-masks) * fake_pixels
+    initial_guess = torch.where(masks != 0, corrupted_images, fake_pixels)
     optimizer_blending = optim.Adam([fake_pixels], lr=0.0001)
 
-    # We want the gradient of image_optimum to be like this one
+    # We want the gradient of current_blending to be like this one
     target_grad = image_gradient(original_fake_images)
 
     criterion = nn.MSELoss()
@@ -255,26 +259,26 @@ def poisson_blending():
     for epoch in range(args.blending_steps):
         optimizer_blending.zero_grad()
 
-        # compute loss and update
-        image_optimum = masks * corrupted_images + (1 - masks) * fake_pixels
-        optimum_grad = image_gradient(image_optimum)
+        # compute blending and gradient
+        current_blending = torch.where(masks != 0, corrupted_images, fake_pixels)
+        current_grad = image_gradient(current_blending)
 
-        blending_loss = criterion(target_grad, optimum_grad)**2
+        # compute loss
+        blending_loss = criterion(target_grad, current_grad)**2
 
-        # add the gradients
+        # update fake_pixels
         blending_loss.backward(retain_graph=True)  # retain_graph=True
-        # update image_optimum
         optimizer_blending.step()
 
         print("[Epoch: {}/{}] \t[Blending loss: {:.3f}]   \r".format(1+epoch, args.blending_steps, blending_loss), end="")
 
-    # bring back the original pixels
-    blend_image = masks * corrupted_images + (1 - masks) * image_optimum
-    plt.title("blend_image[0]")
-    plt.imshow(blend_image[0].permute(1, 2, 0).cpu().detach().numpy())
+    # bring back the original pixels, sanity check
+    blend_image = torch.where(masks != 0, corrupted_images, current_blending)
+    # plt.title("blend_image[0]")
+    # plt.imshow(blend_image[0].permute(1, 2, 0).cpu().detach().numpy())
     # plt.show()
-    plt.title("corrupted_images[0]")
-    plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+    # plt.title("corrupted_images[0]")
+    # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
     # plt.show()
     return initial_guess, blend_image
 
@@ -289,12 +293,13 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
 
     titles = ["original", "corrupted", "initial_guess", "blend"]
     for i in range(blend_images.shape[0]):
+        print("Saving images #{}".format(i+save_count))
+
         image = original_images[i].permute(1, 2, 0).cpu().detach().numpy()
         original_i = image
         plt.title("original_images {}".format(i + save_count))
+        image = (image - np.min(image))/(np.max(image) - np.min(image))
         plt.imshow(image)
-        image = (image - np.min(image))
-        image = image / np.max(image)
         save_path = os.path.join(blend_mask_path, "Image_{}_original.jpg".format(i + save_count))
         plt.imsave(save_path, image)
         # plt.show()
@@ -302,9 +307,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         image = corrupted_images[i].permute(1, 2, 0).cpu().detach().numpy()
         corrupted_i = image
         plt.title("corrupted_images {}".format(i+save_count))
+        image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        image = (image - np.min(image))
-        image = image / np.max(image)
         save_path = os.path.join(blend_mask_path, "Image_{}_corrupted.jpg".format(i + save_count))
         image = image * (corrupted_i != 0)
         plt.imsave(save_path, image)
@@ -313,9 +317,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         image = initial_guess[i].permute(1, 2, 0).cpu().detach().numpy()
         first_guess_i = image
         plt.title("initial_guess {}".format(i+save_count))
+        image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        image = (image - np.min(image))
-        image = image / np.max(image)
         save_path = os.path.join(blend_mask_path, "Image_{}_initial_guess.jpg".format(i + save_count))
         plt.imsave(save_path, image)
         # plt.show()
@@ -323,9 +326,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         image = blend_images[i].permute(1, 2, 0).cpu().detach().numpy()
         blend_image_i = image
         plt.title("blended image {}".format(i+save_count))
+        image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        image = (image - np.min(image))
-        image = image / np.max(image)
         save_path = os.path.join(blend_mask_path, "Image_{}_blend.jpg".format(i + save_count))
         plt.imsave(save_path, image)
         #plt.show()
@@ -373,9 +375,9 @@ def z_optimization(args):
     # Initialize BCELoss function
     criterion = nn.BCELoss(reduction='sum')
 
-    print("Starting inpainting ...")
+    print("Start inpainting ...")
     save_count = 0
-    nb_batch_to_inpaint = 1
+    nb_batch_to_inpaint = 2
     for i, data_and_labels in enumerate(dataloader):
         if i == nb_batch_to_inpaint:
             break
@@ -400,7 +402,7 @@ def z_optimization(args):
                 save_images_during_opt(args, fake_image, corrupted_images, i, iter)
 
             # compute losses
-            c_loss = context_loss(corrupted_images, fake_image, original_weigths, mask_type="central")
+            c_loss = context_loss(corrupted_images, fake_image, original_weigths)
             fake_prediction = netD(fake_image)
             fake_prediction = torch.squeeze(fake_prediction)
             real_label = torch.ones(corrupted_images.shape[0], device=device)

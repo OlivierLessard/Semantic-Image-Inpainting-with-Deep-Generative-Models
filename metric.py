@@ -16,8 +16,9 @@ if __name__ == '__main__':
     """
     Compute pnsr of a blend folder and save it in a text file
     """
-    dataset = "svhn"  # CelebA
-    mask_type = "half"  # center, random, pattern, half
+    # hyper-parameters
+    dataset = "CelebA"  # CelebA
+    mask_type = "center"  # center, random, pattern, half
 
     dataset_path = "./Output_{}/pnsr_{}/".format(dataset, dataset)
     if not os.path.exists(dataset_path):

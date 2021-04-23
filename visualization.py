@@ -38,8 +38,10 @@ def show_images(images, save_name, cols=1, titles=None):
         a = fig.add_subplot(cols, np.ceil(n_images / float(cols)), n + 1)
         if image.ndim == 2:
             plt.gray()
+        image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
         a.set_title(title)
     fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     fig.savefig(save_name)
+    plt.close()
     # plt.show()
