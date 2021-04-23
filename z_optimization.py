@@ -16,8 +16,8 @@ from dcgan import Generator, Discriminator
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="svhn")    # svhn, CelebA
-    parser.add_argument("--mask-type", type=str, default="half")  # center, random, pattern, half
+    parser.add_argument("--dataset", type=str, default="CelebA")    # svhn, CelebA
+    parser.add_argument("--mask-type", type=str, default="center")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
@@ -110,6 +110,11 @@ def create_weights_three_channel(masks, batch_size, mask_type="center"):
 
 
 def apply_mask(original_images, mask_type="center"):
+    """
+    :param original_images: values in range [-1, 1]!!
+    :param mask_type: {0, 1}
+    :return: masked pixels are set to -1 for all channels !!
+    """
     if mask_type == "center":
         width = original_images.shape[2]
         height = original_images.shape[3]
@@ -119,7 +124,15 @@ def apply_mask(original_images, mask_type="center"):
         masks = torch.ones_like(original_images, dtype=torch.float32)
         masks.cuda()
         masks[:, :, int(mask_position_x - mask_width/2):int(mask_position_x + mask_width/2), int(mask_position_y - mask_width/2):int(mask_position_y + mask_width/2)] = 0
-        corrupted_images = original_images * masks
+
+        # set masked pixels to -1
+        black_pixels = -1*torch.ones_like(original_images)
+        corrupted_images = torch.where(masks != 0, original_images, black_pixels)
+
+        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # plt.show()
+        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # plt.show()
 
     elif mask_type == "random":  # 80% missing, random mask
         masks = torch.FloatTensor(original_images.shape).uniform_() > 0.8
@@ -127,11 +140,14 @@ def apply_mask(original_images, mask_type="center"):
         masks[:, 2, :, :] = masks[:, 0, :, :]
         masks = masks.float().cuda()
         original_images = original_images.cuda()
-        corrupted_images = original_images * masks
-        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
 
-        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # set masked pixels to -1
+        black_pixels = -1*torch.ones_like(original_images)
+        corrupted_images = torch.where(masks != 0, original_images, black_pixels)
+
+        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # plt.show()
+        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
         # plt.show()
 
     elif mask_type == "pattern":  # 80% missing, random mask
@@ -140,11 +156,14 @@ def apply_mask(original_images, mask_type="center"):
         masks[:, 2, :, :] = masks[:, 0, :, :]
         masks = masks.float().cuda()
         original_images = original_images.cuda()
-        corrupted_images = original_images * masks
-        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
 
-        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # set masked pixels to -1
+        black_pixels = -1*torch.ones_like(original_images)
+        corrupted_images = torch.where(masks != 0, original_images, black_pixels)
+
+        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # plt.show()
+        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
         # plt.show()
 
     elif mask_type == "half":  # 80% missing, random mask
@@ -152,11 +171,14 @@ def apply_mask(original_images, mask_type="center"):
         masks[:, :, 0:32, 0:64] = 0
         masks = masks.float().cuda()
         original_images = original_images.cuda()
-        corrupted_images = original_images * masks
-        plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
 
-        plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # set masked pixels to -1
+        black_pixels = -1*torch.ones_like(original_images)
+        corrupted_images = torch.where(masks != 0, original_images, black_pixels)
+
+        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
+        # plt.show()
+        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
         # plt.show()
 
     return corrupted_images, masks
@@ -360,7 +382,7 @@ def z_optimization(args):
         if i == nb_batch_to_inpaint:
             break
 
-        original_images = data_and_labels[0]
+        original_images = data_and_labels[0]        # images between [-1, 1]
         corrupted_images, masks = apply_mask(original_images, mask_type=args.mask_type)
         original_weigths = create_weights_three_channel(masks, batch_size=original_images.shape[0], mask_type=args.mask_type)
 
