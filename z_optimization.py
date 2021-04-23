@@ -208,22 +208,20 @@ def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
     # save current fake image
     first_image = fake_image[0].permute(1, 2, 0).cpu().detach().numpy()
     plt.title("fake image [0] iter 0 ")
-    plt.imshow(first_image)
-    first_image = (first_image - np.min(first_image))
-    first_image = first_image / np.max(first_image)
+    normalize_image = (first_image - np.min(first_image))/(np.max(first_image) - np.min(first_image))
+    plt.imshow(normalize_image)
     save_path = os.path.join(z_opt_mask_path, "Batch_{}_fake_iter_{}.jpg".format(i, iter))
-    plt.imsave(save_path, first_image)
+    plt.imsave(save_path, normalize_image)
     # plt.show()
 
     # save the real image only at beginning, won't change
     if iter == 0:
         first_image = corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy()
         plt.title("real image [0] iter 0 ")
-        plt.imshow(first_image)
-        first_image = (first_image - np.min(first_image))
-        first_image = first_image / np.max(first_image)
+        normalize_image = (first_image - np.min(first_image)) / (np.max(first_image) - np.min(first_image))
+        plt.imshow(normalize_image)
         save_path = os.path.join(z_opt_mask_path, "Batch_{}_real_iter_{}.jpg".format(i, iter))
-        plt.imsave(save_path, first_image)
+        plt.imsave(save_path, normalize_image)
         # plt.show()
     return None
 
@@ -387,8 +385,8 @@ def z_optimization(args):
         original_weigths = create_weights_three_channel(masks, batch_size=original_images.shape[0], mask_type=args.mask_type)
 
         # get z^(0)
-        b_size = original_images.size(0)
-        z = torch.randn(b_size, args.nz, 1, 1, device=device)
+        current_batch_size = original_images.size(0)
+        z = torch.randn(current_batch_size, args.nz, 1, 1, device=device)
         z.requires_grad = True
         optimizerZ = optim.Adam([z], lr=args.lr, betas=(args.beta1, 0.999))
 
@@ -421,7 +419,7 @@ def z_optimization(args):
 
         # save images
         save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count)
-        save_count += b_size
+        save_count += current_batch_size
 
     return None
 
