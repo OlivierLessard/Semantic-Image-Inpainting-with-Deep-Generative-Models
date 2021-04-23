@@ -16,7 +16,7 @@ from dcgan import Generator, Discriminator
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="CelebA")    # svhn, CelebA
+    parser.add_argument("--dataset", type=str, default="svhn")    # svhn, CelebA
     parser.add_argument("--mask-type", type=str, default="center")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
@@ -29,7 +29,6 @@ def get_arguments():
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--d-steps", type=int, default=1)
     parser.add_argument("--optim-steps", type=int, default=1500)
-    parser.add_argument("--blending-steps", type=int, default=5000)
     parser.add_argument("--prior-weight", type=float, default=0.003)
     parser.add_argument("--window-size", type=int, default=25)
     parser.add_argument("--checkpoint-interval", type=int, default=300)
@@ -42,6 +41,8 @@ def get_arguments():
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--lr", type=float, default=0.002)
 
+    parser.add_argument("--blending-steps", type=int, default=5000)
+    # parser.add_argument("--blending-steps", type=int, default=500)
     parser.add_argument("--z-iteration", type=int, default=1000)
     # parser.add_argument("--z-iteration", type=int, default=10)
 
@@ -300,8 +301,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         plt.title("original_images {}".format(i + save_count))
         image = (image - np.min(image))/(np.max(image) - np.min(image))
         plt.imshow(image)
-        save_path = os.path.join(blend_mask_path, "Image_{}_original.jpg".format(i + save_count))
-        plt.imsave(save_path, image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_original.png".format(i + save_count))
+        plt.imsave(save_path, image, format='png')
         # plt.show()
 
         image = corrupted_images[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -309,9 +310,9 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         plt.title("corrupted_images {}".format(i+save_count))
         image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        save_path = os.path.join(blend_mask_path, "Image_{}_corrupted.jpg".format(i + save_count))
+        save_path = os.path.join(blend_mask_path, "Image_{}_corrupted.png".format(i + save_count))
         image = image * (corrupted_i != 0)
-        plt.imsave(save_path, image)
+        plt.imsave(save_path, image, format='png')
         #plt.show()
 
         image = initial_guess[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -319,8 +320,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         plt.title("initial_guess {}".format(i+save_count))
         image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        save_path = os.path.join(blend_mask_path, "Image_{}_initial_guess.jpg".format(i + save_count))
-        plt.imsave(save_path, image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_initial_guess.png".format(i + save_count))
+        plt.imsave(save_path, image, format='png')
         # plt.show()
 
         image = blend_images[i].permute(1, 2, 0).cpu().detach().numpy()
@@ -328,8 +329,8 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
         plt.title("blended image {}".format(i+save_count))
         image = (image - np.min(image)) / (np.max(image) - np.min(image))
         plt.imshow(image)
-        save_path = os.path.join(blend_mask_path, "Image_{}_blend.jpg".format(i + save_count))
-        plt.imsave(save_path, image)
+        save_path = os.path.join(blend_mask_path, "Image_{}_blend.png".format(i + save_count))
+        plt.imsave(save_path, image, format='png')
         #plt.show()
 
         from visualization import show_images
@@ -427,7 +428,9 @@ def z_optimization(args):
 
 
 if __name__ == '__main__':
-    args = get_arguments()
-    z_optimization(args)
+    for mask_type in ["random", "center", "pattern", "half"]:
+        args = get_arguments()
+        args.mask_type = mask_type
+        z_optimization(args)
 
 
