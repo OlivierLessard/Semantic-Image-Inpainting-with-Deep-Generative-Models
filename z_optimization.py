@@ -1,17 +1,14 @@
-from dcgan import Generator
 import argparse
-from depricated import models
-from depricated.models import weights_init_normal
+from load_folder import svhn_dataset_dataloader
 from torch import nn, optim
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
-import os, torchvision
-from torchvision.utils import save_image
+import os
 import torch.nn.functional as F
-import random
 from load_folder import celeba_dataset_dataloader
 from dcgan import Generator, Discriminator
+import training_wgan_gp
 
 
 def get_arguments():
@@ -19,7 +16,7 @@ def get_arguments():
     parser.add_argument("--dataset", type=str, default="svhn")    # svhn, CelebA
     parser.add_argument("--mask-type", type=str, default="center")  # center, random, pattern, half
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--model-path", type=str, default="./checkpoints/dcgan.pth")
+    parser.add_argument("--wgan", type=bool, default=False)
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
 
     parser.add_argument("--latent-dim", type=int, default=100)
@@ -130,11 +127,6 @@ def apply_mask(original_images, mask_type="center"):
         black_pixels = -1*torch.ones_like(original_images)
         corrupted_images = torch.where(masks != 0, original_images, black_pixels)
 
-        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-
     elif mask_type == "random":  # 80% missing, random mask
         masks = torch.FloatTensor(original_images.shape).uniform_() > 0.8
         masks[:, 1, :, :] = masks[:, 0, :, :]
@@ -145,11 +137,6 @@ def apply_mask(original_images, mask_type="center"):
         # set masked pixels to -1
         black_pixels = -1*torch.ones_like(original_images)
         corrupted_images = torch.where(masks != 0, original_images, black_pixels)
-
-        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
 
     elif mask_type == "pattern":  # 80% missing, random mask
         masks = torch.FloatTensor(original_images.shape).uniform_() > 0.2
@@ -162,11 +149,6 @@ def apply_mask(original_images, mask_type="center"):
         black_pixels = -1*torch.ones_like(original_images)
         corrupted_images = torch.where(masks != 0, original_images, black_pixels)
 
-        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-
     elif mask_type == "half":  # 80% missing, random mask
         masks = torch.ones_like(original_images)
         masks[:, :, 0:32, 0:64] = 0
@@ -176,11 +158,6 @@ def apply_mask(original_images, mask_type="center"):
         # set masked pixels to -1
         black_pixels = -1*torch.ones_like(original_images)
         corrupted_images = torch.where(masks != 0, original_images, black_pixels)
-
-        # plt.imshow(corrupted_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
-        # plt.imshow(original_images[0].permute(1, 2, 0).cpu().detach().numpy())
-        # plt.show()
 
     return corrupted_images, masks
 
@@ -199,7 +176,12 @@ def context_loss(corrupted_images, generated_images, weights):
 
 
 def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
-    z_opt_path = os.path.join("./Output_{}".format(args.dataset), "z_optimization")
+    if not args.wgan:
+        z_opt_path = os.path.join("./Output_{}".format(args.dataset), "z_optimization")
+    else:
+        if not os.path.exists("./Output_{}_wgan/".format(args.dataset)):
+            os.mkdir("./Output_{}_wgan/".format(args.dataset))
+        z_opt_path = os.path.join("./Output_{}_wgan/".format(args.dataset), "z_optimization")
     if not os.path.exists(z_opt_path):
         os.mkdir(z_opt_path)
     z_opt_mask_path = os.path.join(z_opt_path, args.mask_type)
@@ -285,7 +267,10 @@ def poisson_blending():
 
 
 def save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count):
-    blend_path = os.path.join("./Output_{}/".format(args.dataset), "Blend/")
+    if not args.wgan:
+        blend_path = os.path.join("./Output_{}/".format(args.dataset), "Blend/")
+    else:
+        blend_path = os.path.join("./Output_{}_wgan/".format(args.dataset), "Blend/")
     if not os.path.exists(blend_path):
         os.mkdir(blend_path)
     blend_mask_path = os.path.join(blend_path, args.mask_type)
@@ -355,19 +340,34 @@ def z_optimization(args):
     # dataloader for original images
     if args.dataset == "CelebA":
         dataset, dataloader = celeba_dataset_dataloader(args)
-    if args.dataset == "svhn":
-        from load_folder import svhn_dataset_dataloader
-        dataset, dataloader = svhn_dataset_dataloader(args)
+    elif args.dataset == "svhn":
+        dataset, dataloader = svhn_dataset_dataloader(args, split='test')
+        # dataset, dataloader = svhn_dataset_dataloader(args, split='train')
 
-    # load models
-    netG = Generator(args).to(device)
-    netD = Discriminator(args).to(device)
-    if args.dataset == "CelebA":
-        checkpoint = torch.load(args.model_path)
-    if args.dataset == "svhn":
-        checkpoint = torch.load("./checkpoints_svhn/model.pth")
-    netG.load_state_dict(checkpoint['state_dict_G'])
-    netD.load_state_dict(checkpoint['state_dict_D'])
+    # load models dcgan or wgan
+    if not args.wgan:
+        netG = Generator(args).to(device)
+        netD = Discriminator(args).to(device)
+        if args.dataset == "CelebA":
+            checkpoint = torch.load("./checkpoints_celebA_dcgan/dcgan.pth")
+        if args.dataset == "svhn":
+            checkpoint = torch.load("./checkpoints_svhn_dcgan/model.pth")
+        netG.load_state_dict(checkpoint['state_dict_G'])
+        netD.load_state_dict(checkpoint['state_dict_D'])
+    else:
+        if args.dataset == "svhn":
+            opt = training_wgan_gp.get_args()
+            netG = training_wgan_gp.Generator()
+            checkpoint = torch.load("./checkpoints_svhn_wgan/wgan_gp.pth")
+            netG.load_state_dict(checkpoint["state_dict_G"])
+            netG.cuda()
+
+            # test with dcgan D because it's a classifier
+            netD = Discriminator(args).to(device)
+            checkpoint = torch.load("./checkpoints_svhn_dcgan/model.pth")
+            netD.load_state_dict(checkpoint['state_dict_D'])
+        else:
+            raise NameError('WGAN was not trained with celebA')
 
     # freeze G and D
     netG.eval()
@@ -397,7 +397,7 @@ def z_optimization(args):
         for iter in range(args.z_iteration):
             optimizerZ.zero_grad()
 
-            fake_image = netG(z)
+            fake_image = netG(z.squeeze()) if args.wgan else netG(z)
 
             if iter == 0 or iter == args.z_iteration-1:
                 save_images_during_opt(args, fake_image, corrupted_images, i, iter)
@@ -428,9 +428,13 @@ def z_optimization(args):
 
 
 if __name__ == '__main__':
-    for mask_type in ["random", "center", "pattern", "half"]:
-        args = get_arguments()
+    args = get_arguments()
+
+    # set this argument to True if you want to use the WGAN model
+    args.wgan = True
+    args.dataset = "svhn"
+
+    # inference with all the mask types
+    for mask_type in ["center", "pattern", "half", "random"]:
         args.mask_type = mask_type
         z_optimization(args)
-
-

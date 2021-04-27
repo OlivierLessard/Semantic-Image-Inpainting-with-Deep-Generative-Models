@@ -15,7 +15,7 @@ def get_arguments():
     parser.add_argument("--dataset", type=str, default="SVHN")
     parser.add_argument("--mask-type", type=str, default="Center")
     parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--model-path", type=str, default="./checkpoints/model.pth")
+    parser.add_argument("--model-path", type=str, default="./checkpoints_celebA_dcgan/model.pth")
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
 
     parser.add_argument("--latent-dim", type=int, default=100)
@@ -36,8 +36,8 @@ def get_arguments():
 def create_folders():
     if not os.path.exists("../images/"):
         os.mkdir("../images/")
-    if not os.path.exists("../checkpoints/"):
-        os.mkdir("../checkpoints/")
+    if not os.path.exists("../checkpoints_celebA_dcgan/"):
+        os.mkdir("../checkpoints_celebA_dcgan/")
     if not os.path.exists("../eval/"):
         os.mkdir("../eval/")
 
@@ -138,7 +138,7 @@ def train_GAN(args):
                         "state_dict_D": discriminator.state_dict(),
                         "optimizer_G": optimizer_G.state_dict(),
                         "optimizer_D": optimizer_D.state_dict()
-                        }, "checkpoints/{}.pth".format(iteration))
+                        }, "checkpoints_celebA_dcgan/{}.pth".format(iteration))
 
 
 if __name__ == "__main__":

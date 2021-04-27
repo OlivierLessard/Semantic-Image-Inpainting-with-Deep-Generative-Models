@@ -1,0 +1,8 @@
+with center mask, mean PNSR :
+13.381711381896853
+with random mask, mean PNSR :
+23.1719674722951
+with pattern mask, mean PNSR :
+25.441298980890423
+with half mask, mean PNSR :
+13.63659155722846

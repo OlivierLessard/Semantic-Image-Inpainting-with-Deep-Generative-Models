@@ -2,8 +2,6 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.datasets as dset
 from torchvision import transforms
-import glob, os
-import numpy as np
 
 
 def celeba_dataset_dataloader(args):
@@ -20,9 +18,9 @@ def celeba_dataset_dataloader(args):
     return dataset, dataloader
 
 
-def svhn_dataset_dataloader(args):
+def svhn_dataset_dataloader(args, split='test'):
     import torchvision
-    train_data = torchvision.datasets.SVHN(root="Datasets\SVHN", split='train',
+    train_data = torchvision.datasets.SVHN(root="Datasets\SVHN", split=split,
                                            transform=torchvision.transforms.Compose([
                                                transforms.Resize(args.image_size),
                                                transforms.CenterCrop(args.image_size),
