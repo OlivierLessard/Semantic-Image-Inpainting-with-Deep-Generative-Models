@@ -149,3 +149,4 @@ checkpoints_svhn_wgan/
 checkpoints_celebA_dcgan/iters_0.pth checkpoints_celebA_dcgan/iters_1200.pth checkpoints_celebA_dcgan/iters_1500.pth checkpoints_celebA_dcgan/iters_1800.pth checkpoints_celebA_dcgan/iters_300.pth checkpoints_celebA_dcgan/iters_600.pth checkpoints_celebA_dcgan/iters_900.pth
 checkpoints_celebA_dcgan/iters_0.pth checkpoints_celebA_dcgan/iters_1200.pth checkpoints_celebA_dcgan/iters_1500.pth checkpoints_celebA_dcgan/iters_1800.pth checkpoints_celebA_dcgan/iters_300.pth checkpoints_celebA_dcgan/iters_600.pth checkpoints_celebA_dcgan/iters_900.pth
 
+/depricated/

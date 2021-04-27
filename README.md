@@ -1,5 +1,5 @@
 # Semantic-Image-Inpainting-with-Deep-Generative-Models
-This repo reproduce the methodology in the Semantic-Image-Inpainting-with-Deep-Generative-Models paper. 
+This repo recreates the methodology in the Semantic-Image-Inpainting-with-Deep-Generative-Models paper. 
 https://arxiv.org/pdf/1607.07539.pdf
 
 - CelebA images need to be in a folder in the 'Datasets' folder.
@@ -13,6 +13,7 @@ To run the project, do:
 ![plot](Output_svhn_dcgan/Blend/random/Image_0_all.jpg)
 
 To compare with a WGAN with gradient penalty
+Note: The WGAN was only trained with SVHN dataset. 
 1) Run the training_wgan.py to get a generator.
 2) Run z_optimization.py to produce blended images with the trained **WGAN** generator. 
 3) Run metric.py to compute the PNSR for the different masks with the right hyperparameters. 

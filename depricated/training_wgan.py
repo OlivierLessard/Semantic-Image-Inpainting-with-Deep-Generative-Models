@@ -16,7 +16,7 @@ import os
 from itertools import chain
 from torchvision import utils
 import argparse
-from load_folder import celeba_dataset_dataloader
+from data import celeba_dataset_dataloader
 
 SAVE_PER_TIMES = 100
 

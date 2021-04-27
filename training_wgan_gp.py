@@ -109,7 +109,7 @@ if __name__ == '__main__':
         discriminator.cuda()
 
     # Configure data loader
-    from load_folder import svhn_dataset_dataloader
+    from data import svhn_dataset_dataloader
     train_data, dataloader = svhn_dataset_dataloader(opt, 'train')
 
     # Optimizers

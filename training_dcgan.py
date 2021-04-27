@@ -9,7 +9,7 @@ import numpy as np
 import os, torchvision
 from torchvision.utils import save_image
 import random
-from load_folder import celeba_dataset_dataloader
+from data import celeba_dataset_dataloader
 from dcgan import weights_init
 import torchvision.utils as vutils
 from dcgan import Discriminator

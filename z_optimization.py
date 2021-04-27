@@ -1,12 +1,12 @@
 import argparse
-from load_folder import svhn_dataset_dataloader
+from data import svhn_dataset_dataloader
 from torch import nn, optim
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
 import os
 import torch.nn.functional as F
-from load_folder import celeba_dataset_dataloader
+from data import celeba_dataset_dataloader
 from dcgan import Generator, Discriminator
 import training_wgan_gp
 
