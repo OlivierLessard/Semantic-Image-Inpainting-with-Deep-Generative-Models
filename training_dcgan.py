@@ -178,7 +178,7 @@ def train_GAN(args):
 
     save_learning_curves(G_losses, D_losses)
 
-    # Grab a batch of real images from the dataloader
+    # Grab a batch of real wgan_training from the dataloader
     real_batch = next(iter(dataloader))
 
     fig = plt.figure(figsize=(8, 8))
@@ -188,7 +188,7 @@ def train_GAN(args):
 
     HTML(ani.to_jshtml())
 
-    # Plot the real images
+    # Plot the real wgan_training
     plt.figure(figsize=(15, 15))
     plt.subplot(1, 2, 1)
     plt.axis("off")
@@ -196,7 +196,7 @@ def train_GAN(args):
     plt.imshow(
         np.transpose(vutils.make_grid(real_batch[0].to(device)[:64], padding=5, normalize=True).cpu(), (1, 2, 0)))
 
-    # Plot the fake images from the last epoch
+    # Plot the fake wgan_training from the last epoch
     plt.subplot(1, 2, 2)
     plt.axis("off")
     plt.title("Fake Images")

@@ -278,7 +278,7 @@ def save_blend_images(args, original_images, corrupted_images, initial_guess, bl
 
     titles = ["original", "corrupted", "initial_guess", "blend"]
     for i in range(blend_images.shape[0]):
-        print("Saving images #{}".format(i+save_count))
+        print("Saving wgan_training #{}".format(i+save_count))
 
         image = original_images[i].permute(1, 2, 0).cpu().detach().numpy()
         original_i = image
@@ -336,7 +336,7 @@ def z_optimization(args):
     device = torch.device("cuda:0" if (torch.cuda.is_available() and args.ngpu > 0) else "cpu")
     print("device:", device)
 
-    # dataloader for original images
+    # dataloader for original wgan_training
     if args.dataset == "CelebA":
         dataset, dataloader = celeba_dataset_dataloader(args)
     elif args.dataset == "svhn":
@@ -382,7 +382,7 @@ def z_optimization(args):
         if i == nb_batch_to_inpaint:
             break
 
-        original_images = data_and_labels[0]        # images between [-1, 1]
+        original_images = data_and_labels[0]        # wgan_training between [-1, 1]
         corrupted_images, masks = apply_mask(original_images, mask_type=args.mask_type)
         original_weigths = create_weights_three_channel(masks, batch_size=original_images.shape[0], mask_type=args.mask_type)
 
@@ -419,7 +419,7 @@ def z_optimization(args):
         save_tensors(masks, fake_image, corrupted_images)
         initial_guess, blend_images = poisson_blending()
 
-        # save images
+        # save wgan_training
         save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count)
         save_count += current_batch_size
 

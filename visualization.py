@@ -17,7 +17,7 @@ def save_learning_curves(G_losses, D_losses):
 
 
 def show_images(images, save_name, cols=1, titles=None):
-    """Display a list of images in a single figure with matplotlib.
+    """Display a list of wgan_training in a single figure with matplotlib.
 
     Parameters
     ---------

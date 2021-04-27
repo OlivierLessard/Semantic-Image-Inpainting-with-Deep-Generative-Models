@@ -137,12 +137,12 @@ if __name__ == '__main__':
             # Sample noise as generator input
             z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
 
-            # Generate a batch of images
+            # Generate a batch of wgan_training
             fake_imgs = generator(z)
 
-            # Real images
+            # Real wgan_training
             real_validity = discriminator(real_imgs)
-            # Fake images
+            # Fake wgan_training
             fake_validity = discriminator(fake_imgs)
             # Gradient penalty
             gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
@@ -161,10 +161,10 @@ if __name__ == '__main__':
                 #  Train Generator
                 # -----------------
 
-                # Generate a batch of images
+                # Generate a batch of wgan_training
                 fake_imgs = generator(z)
                 # Loss measures generator's ability to fool the discriminator
-                # Train on fake images
+                # Train on fake wgan_training
                 fake_validity = discriminator(fake_imgs)
                 g_loss = -torch.mean(fake_validity)
 
