@@ -9,8 +9,8 @@ To run the project, do:
 1) Run training_dcgan.py with the hyperparameters to get a trained generator and discriminator. 
 2) Run z_optimization.py to produce blended images with the trained **DCGAN**. 
 3) Run metric.py to compute the PNSR for the different masks. 
-![plot](Output_CelebA/Blend/center/Image_10_all.jpg)
-![plot](Output_svhn/Blend/random/Image_0_all.jpg)
+![plot](Output_CelebA_dcgan/Blend/center/Image_10_all.jpg)
+![plot](Output_svhn_dcgan/Blend/random/Image_0_all.jpg)
 
 To compare with a WGAN with gradient penalty
 1) Run the training_wgan.py to get a generator.

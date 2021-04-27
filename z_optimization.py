@@ -84,7 +84,6 @@ def create_weights_three_channel(masks, batch_size, mask_type="center"):
         weights = torch.repeat_interleave(weights, repeats=batch_size, dim=0)
 
     elif mask_type == "random" or mask_type == "pattern" or mask_type == "half":
-        # TODO
         weights = torch.zeros_like(masks)  # (128, 3, 64, 64)
 
         print("calculating weights")
@@ -177,7 +176,7 @@ def context_loss(corrupted_images, generated_images, weights):
 
 def save_images_during_opt(args, fake_image, corrupted_images, i, iter):
     if not args.wgan:
-        z_opt_path = os.path.join("./Output_{}".format(args.dataset), "z_optimization")
+        z_opt_path = os.path.join("./Output_{}_dcgan".format(args.dataset), "z_optimization")
     else:
         if not os.path.exists("./Output_{}_wgan/".format(args.dataset)):
             os.mkdir("./Output_{}_wgan/".format(args.dataset))
@@ -268,7 +267,7 @@ def poisson_blending():
 
 def save_blend_images(args, original_images, corrupted_images, initial_guess, blend_images, save_count):
     if not args.wgan:
-        blend_path = os.path.join("./Output_{}/".format(args.dataset), "Blend/")
+        blend_path = os.path.join("./Output_{}_dcgan/".format(args.dataset), "Blend/")
     else:
         blend_path = os.path.join("./Output_{}_wgan/".format(args.dataset), "Blend/")
     if not os.path.exists(blend_path):

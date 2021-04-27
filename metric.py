@@ -20,7 +20,7 @@ if __name__ == '__main__':
     if wgan:
         dataset_path = "./Output_{}_wgan/pnsr_{}/".format(dataset, dataset)
     else:
-        dataset_path = "./Output_{}/pnsr_{}/".format(dataset, dataset)
+        dataset_path = "./Output_{}_dcgan/pnsr_{}/".format(dataset, dataset)
     if not os.path.exists(dataset_path):
         os.mkdir(dataset_path)
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         if wgan:
             blend_path = os.path.join("./Output_{}_wgan/Blend/".format(dataset), mask + "/")
         else:
-            blend_path = os.path.join("./Output_{}/Blend/".format(dataset), mask+"/")
+            blend_path = os.path.join("./Output_{}_dcgan/Blend/".format(dataset), mask+"/")
         for i in range(int(len(os.listdir(blend_path))/5)):
             read_path = os.path.join(blend_path, 'Image_{}_blend.png'.format(i))
             blend = plt.imread(read_path)[:, :, :-1]   # [0.0, 1.0]
