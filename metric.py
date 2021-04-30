@@ -14,8 +14,8 @@ if __name__ == '__main__':
     Compute pnsr of a blend folder and save it in a text file
     """
     # hyper-parameters
-    wgan = False
-    dataset = "CelebA"  # CelebA, svhn
+    wgan = True
+    dataset = "svhn"  # CelebA, svhn
 
     if wgan:
         dataset_path = "./Output_{}_wgan/pnsr_{}/".format(dataset, dataset)
