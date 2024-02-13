@@ -1,4 +1,4 @@
-from dcgan import Generator
+from GAN import Generator
 import argparse
 from depricated import models
 from depricated.models import weights_init_normal
@@ -10,9 +10,9 @@ import os, torchvision
 from torchvision.utils import save_image
 import random
 from data import celeba_dataset_dataloader
-from dcgan import weights_init
+from GAN import weights_init
 import torchvision.utils as vutils
-from dcgan import Discriminator
+from GAN import Discriminator
 from visualization import save_learning_curves
 import matplotlib.animation as animation
 from IPython.display import HTML

@@ -7,7 +7,7 @@ import numpy as np
 import os
 import torch.nn.functional as F
 from data import celeba_dataset_dataloader
-from dcgan import Generator, Discriminator
+from GAN import Generator, Discriminator
 import training_wgan_gp
 
 
