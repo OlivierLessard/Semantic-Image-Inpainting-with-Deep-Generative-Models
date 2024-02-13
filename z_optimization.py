@@ -18,7 +18,6 @@ def get_arguments():
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--wgan", type=bool, default=False)
     parser.add_argument("--train-data-dir", type=str, default="./Datasets/CelebA/")
-
     parser.add_argument("--latent-dim", type=int, default=100)
     parser.add_argument("--image-size", type=int, default=64)
     parser.add_argument("--channels", type=int, default=3)
@@ -37,7 +36,6 @@ def get_arguments():
     parser.add_argument("--ngf", type=int, default=64)
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--lr", type=float, default=0.002)
-
     parser.add_argument("--blending-steps", type=int, default=5000)
     # parser.add_argument("--blending-steps", type=int, default=500)
     parser.add_argument("--z-iteration", type=int, default=1000)
